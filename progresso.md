@@ -140,14 +140,53 @@ Ao encerrar:
 ---
 
 ## Fase 3 — Integração com plano de treino
-> Mostrar treino do dia no relógio, treino guiado, alertas por zona
+> Mostrar treino do dia no relógio, alertas de pace por zona
 
-| Item | Status |
-|------|--------|
-| Repasse do `SYS_PLAN_WEEK` do iPhone para o Watch | ⏳ planejado |
-| Tela "Treino de hoje" no Watch | ⏳ planejado |
-| Treino guiado via WorkoutKit (watchOS 10+) | ⏳ planejado |
-| Alerta de zona fora da meta | ⏳ planejado |
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `TrainingPlan.swift` — modelos: `WorkoutType`, `DailyWorkout`, `TrainingWeek`, `TrainingPlan` | ✅ | `apple/TempoRunWatch/.../Models/TrainingPlan.swift` |
+| 13 tipos de treino mapeados (Rodagem, Longão, Qualidade, Recovery) | ✅ | `TrainingPlan.swift` |
+| Parse de `pace_alvo` "min:ss-min:ss/km" → seg/km com tolerância ±5% | ✅ | `TrainingPlan.swift` |
+| `isPaceOnTarget()` — status: ok / tooFast / tooSlow | ✅ | `TrainingPlan.swift` |
+| `todayWorkout()` — seleciona sessão pelo dia da semana atual | ✅ | `TrainingPlan.swift` |
+| `TrainingPlanManager.swift` — recebe plano, cache App Group, alertas | ✅ | `apple/TempoRunWatch/.../Managers/TrainingPlanManager.swift` |
+| Cache local via `UserDefaults(suiteName: group.com.temporun.run)` | ✅ | `TrainingPlanManager.swift` |
+| `checkPaceAlert()` — dispara haptic `directionUp/Down` fora da zona | ✅ | `TrainingPlanManager.swift` |
+| `requestPlanFromPhone()` — solicita plano ao iPhone via `sendMessage` | ✅ | `TrainingPlanManager.swift` |
+| `TodayWorkoutView.swift` — treino do dia com estrutura, pace-alvo, alerta de lesão | ✅ | `apple/TempoRunWatch/.../Views/TodayWorkoutView.swift` |
+| `WeekPlanView.swift` — semana completa com destaque no dia atual | ✅ | `TodayWorkoutView.swift` |
+| `PaceAlertOverlay.swift` — overlay animado com auto-dismiss 4s | ✅ | `apple/TempoRunWatch/.../Views/PaceAlertOverlay.swift` |
+| `ContentView.swift` — 3 tabs em idle (Hoje / Semana / Livre) + overlay de alerta | ✅ | `ContentView.swift` |
+| `PlanSyncToWatch.swift` (iOS) — serializa e envia plano via WC, responde request do Watch | ✅ | `apple/PlanSyncToWatch.swift` |
+| `buildTransfer(from:)` — converte row do Supabase para struct Codable | ✅ | `PlanSyncToWatch.swift` |
+
+### Fluxo completo da Fase 3
+```
+temporun-app (iPhone)                    Watch
+──────────────────────────────           ──────────────────────────────
+Plano ativo no Supabase                  TrainingPlanManager.shared
+  planos_treino.semanas (JSONB)          ├─ cache em UserDefaults (App Group)
+  ↓                                      ├─ todayWorkout() → DailyWorkout
+PlanSyncToWatch.buildTransfer()          └─ weekWorkouts → [DailyWorkout]
+  ↓
+syncActivePlan()                         ContentView (idle):
+  updateApplicationContext     ──────→   Tab "Hoje": TodayWorkoutView
+  (Watch por perto)                        - tipo, distância, pace-alvo
+                                           - breakdown da sessão
+  transferUserInfo             ──────→     - alerta de lesão (se houver)
+  (Watch offline)                          - botão "Iniciar treino"
+
+Watch solicita manualmente:              Tab "Semana": WeekPlanView
+  requestPlanFromPhone()       ──────→     - 7 dias com destaque no atual
+  sendMessage("trainingPlan")  ←──────   Tab "Livre": StartView
+
+Durante a corrida:                       
+  WorkoutManager atualiza pace           
+  → planManager.checkPaceAlert()         
+    - tooFast: haptic directionUp        
+    - tooSlow: haptic directionDown      
+    - overlay PaceAlertOverlay (4s)      
+```
 
 ---
 
