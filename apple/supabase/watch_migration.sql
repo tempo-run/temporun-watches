@@ -128,10 +128,12 @@ CREATE TABLE IF NOT EXISTS watch_sync_log (
 
 ALTER TABLE watch_sync_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Usuário vê próprios logs" ON watch_sync_log;
 CREATE POLICY "Usuário vê próprios logs"
   ON watch_sync_log FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuário insere próprios logs" ON watch_sync_log;
 CREATE POLICY "Usuário insere próprios logs"
   ON watch_sync_log FOR INSERT
   WITH CHECK (auth.uid() = user_id);
