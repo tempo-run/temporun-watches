@@ -11,7 +11,7 @@ workflows:
         BUNDLE_ID: com.temporun.run.watchkitapp
         BUNDLE_ID_WIDGET: com.temporun.run.watchkitapp.watchkitextension
       groups:
-        - app_store_credentials   # grupo com as 3 vars do App Store Connect
+        - TEMPORUN-WATCH-SECRETS
 
     scripts:
       - name: Instalar XcodeGen
