@@ -82,47 +82,32 @@ interface PersonalRecord {
 }
 
 // ─── Cálculo de XP ────────────────────────────────────────────────────────────
+// Fórmula exata do TempoRun.jsx (~linha 14049):
+//   Math.round(km * 45 + seg / 60 * 2)
+//   45 XP por km + 2 XP por minuto — flat, sem bônus por tipo ou intensidade
 
 function calcularXP(payload: WatchWorkoutPayload): number {
-  // Base: 10 XP por km
-  let xp = Math.floor(payload.distancia_km * 10)
-
-  // Bônus por intensidade (zonas de FC)
-  const totalSeg = payload.duracao_seg || 1
-  const pctZ4 = payload.tempo_zona4 / totalSeg
-  const pctZ5 = payload.tempo_zona5 / totalSeg
-
-  if (pctZ4 > 0.20) xp += Math.floor(xp * 0.15)  // +15% se >20% em Z4
-  if (pctZ5 > 0.10) xp += Math.floor(xp * 0.20)  // +20% se >10% em Z5
-
-  // Bônus por tipo de treino
-  const tipo = payload.treino_tipo ?? ""
-  if (["Intervalado", "Tempo Run", "Subidas"].includes(tipo)) xp += 20
-  else if (["Fartlek", "Strides"].includes(tipo))             xp += 10
-  else if (["Longão Lento", "Longão com Ritmo", "Longão Progressivo"].includes(tipo)) xp += 15
-
-  // Bônus por elevação (1 XP por 10m de ganho)
-  xp += Math.floor(payload.ganho_elevacao / 10)
-
-  // Bônus por longa distância
-  if (payload.distancia_km >= 42)      xp += 100
-  else if (payload.distancia_km >= 21) xp += 50
-  else if (payload.distancia_km >= 10) xp += 20
-
-  // Bônus de potência (Running Power > 250W)
-  if (payload.running_power > 250)     xp += 10
-
-  return Math.max(xp, 1)
+  return Math.round(payload.distancia_km * 45 + payload.duracao_seg / 60 * 2)
 }
 
 // ─── Verificação de recordes pessoais ─────────────────────────────────────────
+// Espelha RP_TRACKED_DISTANCES + rpAttemptFromRun do TempoRun.jsx (~linha 3933)
+// Interpolação proporcional: rpSeg = round(duracao_seg * (dist.km / km_corrida))
+// Corrida elegível para qualquer distância que ela COBRE (km_corrida >= dist.km)
 
-const DISTANCIAS_PR = [
-  { label: "1km",   min: 0.9,  max: 1.1  },
-  { label: "5km",   min: 4.8,  max: 5.2  },
-  { label: "10km",  min: 9.8,  max: 10.2 },
-  { label: "21km",  min: 20.8, max: 21.4 },
-  { label: "42km",  min: 41.8, max: 42.6 },
+const RP_TRACKED_DISTANCES = [
+  { label: "400m",  key: "400m", km: 0.4    },
+  { label: "800m",  key: "800m", km: 0.8    },
+  { label: "1K",    key: "1K",   km: 1.0    },
+  { label: "1.6K",  key: "1.6K", km: 1.609  },
+  { label: "3.2K",  key: "3.2K", km: 3.219  },
+  { label: "5K",    key: "5K",   km: 5.0    },
+  { label: "10K",   key: "10K",  km: 10.0   },
+  { label: "15K",   key: "15K",  km: 15.0   },
+  { label: "10MI",  key: "10MI", km: 16.093 },
+  { label: "21K",   key: "21K",  km: 21.097 },
+  { label: "42K",   key: "42K",  km: 42.195 },
+  { label: "50K",   key: "50K",  km: 50.0   },
 ]
 
 async function verificarRecordes(
@@ -132,27 +117,32 @@ async function verificarRecordes(
 ): Promise<PersonalRecord[]> {
   const novos: PersonalRecord[] = []
 
-  for (const dist of DISTANCIAS_PR) {
-    if (payload.distancia_km < dist.min || payload.distancia_km > dist.max) continue
+  for (const dist of RP_TRACKED_DISTANCES) {
+    // Corrida cobre essa distância?
+    if (payload.distancia_km < dist.km - 0.01) continue
+
+    // Interpola o tempo proporcionalmente (mesma lógica do rpAttemptFromRun)
+    const tempoInterpolado = Math.max(1, Math.round(
+      payload.duracao_seg * (dist.km / payload.distancia_km)
+    ))
 
     const { data: existente } = await supabase
       .from("recordes_pessoais")
-      .select("tempo_seg, distancia_label")
+      .select("tempo_seg")
       .eq("user_id", userId)
-      .eq("distancia_label", dist.label)
+      .eq("distancia_label", dist.key)
       .single()
 
-    const tempoNovo = payload.duracao_seg
     const tempoAnterior = existente?.tempo_seg ?? null
 
-    if (tempoAnterior === null || tempoNovo < tempoAnterior) {
+    if (tempoAnterior === null || tempoInterpolado < tempoAnterior) {
       await supabase
         .from("recordes_pessoais")
         .upsert({
           user_id:         userId,
-          distancia_label: dist.label,
-          tempo_seg:       tempoNovo,
-          pace_medio:      payload.pace_medio,
+          distancia_label: dist.key,
+          tempo_seg:       tempoInterpolado,
+          pace_medio:      formatPace(tempoInterpolado / dist.km),
           data_corrida:    payload.data_inicio,
           source:          payload.source,
         }, { onConflict: "user_id,distancia_label" })
@@ -160,7 +150,7 @@ async function verificarRecordes(
       novos.push({
         distancia:      dist.label,
         tempo_anterior: tempoAnterior,
-        tempo_novo:     tempoNovo,
+        tempo_novo:     tempoInterpolado,
       })
     }
   }
@@ -169,45 +159,50 @@ async function verificarRecordes(
 }
 
 // ─── Streak ───────────────────────────────────────────────────────────────────
+// Espelha calcStreak() do TempoRun.jsx (~linha 14394):
+// Conta SEMANAS ÚNICAS com pelo menos uma corrida (não dias consecutivos).
+// Semana = domingo da semana do timestamp.
+
+function domingoSemana(date: Date): string {
+  const d = new Date(date)
+  d.setDate(d.getDate() - d.getDay())   // recua para o domingo
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString().split("T")[0]
+}
 
 async function atualizarStreak(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   dataFim: string
 ): Promise<number> {
-  const hoje = new Date(dataFim).toISOString().split("T")[0]
+  // Busca todas as corridas do usuário para contar semanas únicas
+  const { data: corridas } = await supabase
+    .from("corridas")
+    .select("timestamp")
+    .eq("user_id", userId)
+    .order("timestamp", { ascending: false })
 
-  // Busca valores atuais do streak
+  // Semanas únicas com corrida
+  const semanasUnicas = new Set(
+    (corridas ?? []).map(r => domingoSemana(new Date(r.timestamp)))
+  )
+  const novoStreak = semanasUnicas.size
+
+  // Persiste em user_data para as complicações e o app lerem
   const { data: rows } = await supabase
     .from("user_data")
     .select("key, value")
     .eq("user_id", userId)
-    .in("key", ["streak_atual", "streak_ultima_data", "streak_maximo"])
+    .in("key", ["streak_maximo"])
 
-  const vals: Record<string, string> = {}
-  for (const row of rows ?? []) vals[row.key] = row.value
+  const streakMax = Math.max(
+    novoStreak,
+    parseInt(rows?.find(r => r.key === "streak_maximo")?.value ?? "0")
+  )
 
-  const streakAtual   = parseInt(vals["streak_atual"]   ?? "0")
-  const streakMax     = parseInt(vals["streak_maximo"]  ?? "0")
-  const ultimaData    = vals["streak_ultima_data"] ?? ""
-
-  // Calcula diferença em dias
-  const diffDias = ultimaData
-    ? Math.floor((new Date(hoje).getTime() - new Date(ultimaData).getTime()) / 86400000)
-    : 999
-
-  let novoStreak: number
-  if (diffDias === 0)      novoStreak = streakAtual          // mesma data, não incrementa
-  else if (diffDias === 1) novoStreak = streakAtual + 1      // dia seguinte
-  else                     novoStreak = 1                    // quebrou o streak
-
-  const novoMax = Math.max(novoStreak, streakMax)
-
-  // Upsert dos três valores
   await supabase.from("user_data").upsert([
-    { user_id: userId, key: "streak_atual",       value: String(novoStreak) },
-    { user_id: userId, key: "streak_ultima_data", value: hoje },
-    { user_id: userId, key: "streak_maximo",      value: String(novoMax) },
+    { user_id: userId, key: "streak_atual",  value: String(novoStreak) },
+    { user_id: userId, key: "streak_maximo", value: String(streakMax)  },
   ], { onConflict: "user_id,key" })
 
   return novoStreak

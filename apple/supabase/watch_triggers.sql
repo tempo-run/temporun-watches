@@ -6,8 +6,9 @@
 
 -- -----------------------------------------------------------------------------
 -- 1. FUNÇÃO: calcular XP de uma corrida
--- Espelha a lógica de calcularXP() da edge function watch-workout-save
--- Usada pela trigger abaixo e pode ser chamada manualmente
+-- Fórmula exata do TempoRun.jsx (~linha 14049):
+--   Math.round(km * 45 + seg / 60 * 2)
+--   45 XP por km + 2 XP por minuto — flat, sem bônus por tipo ou intensidade
 -- -----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION calcular_xp_corrida(corrida corridas)
@@ -15,36 +16,8 @@ RETURNS integer
 LANGUAGE plpgsql
 IMMUTABLE
 AS $$
-DECLARE
-  xp          integer;
-  pct_z4      numeric;
-  pct_z5      numeric;
 BEGIN
-  -- Base: 10 XP por km
-  xp := GREATEST(FLOOR(corrida.distancia_km * 10), 1);
-
-  -- Bônus por zonas de FC (se disponível)
-  IF corrida.duracao_seg > 0 THEN
-    pct_z4 := COALESCE(corrida.tempo_zona4, 0) / corrida.duracao_seg;
-    pct_z5 := COALESCE(corrida.tempo_zona5, 0) / corrida.duracao_seg;
-
-    IF pct_z4 > 0.20 THEN xp := xp + FLOOR(xp * 0.15); END IF;
-    IF pct_z5 > 0.10 THEN xp := xp + FLOOR(xp * 0.20); END IF;
-  END IF;
-
-  -- Bônus por elevação (1 XP por 10m)
-  xp := xp + FLOOR(COALESCE(corrida.dplus, 0) / 10);
-
-  -- Bônus por distância
-  IF    corrida.distancia_km >= 42 THEN xp := xp + 100;
-  ELSIF corrida.distancia_km >= 21 THEN xp := xp + 50;
-  ELSIF corrida.distancia_km >= 10 THEN xp := xp + 20;
-  END IF;
-
-  -- Bônus de potência
-  IF COALESCE(corrida.running_power, 0) > 250 THEN xp := xp + 10; END IF;
-
-  RETURN xp;
+  RETURN ROUND(corrida.distancia_km * 45 + corrida.duracao_seg / 60.0 * 2)::integer;
 END;
 $$;
 
@@ -58,7 +31,6 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Só calcula se não foi enviado pelo cliente (evita sobrescrever edge function)
   IF NEW.xp_ganho IS NULL OR NEW.xp_ganho = 0 THEN
     NEW.xp_ganho := calcular_xp_corrida(NEW);
   END IF;
@@ -83,12 +55,10 @@ AS $$
 DECLARE
   xp_atual integer;
 BEGIN
-  -- Lê XP atual
   SELECT COALESCE(value::integer, 0) INTO xp_atual
   FROM user_data
   WHERE user_id = NEW.user_id AND key = 'xp_total';
 
-  -- Upsert com o novo total
   INSERT INTO user_data (user_id, key, value)
   VALUES (NEW.user_id, 'xp_total', (xp_atual + NEW.xp_ganho)::text)
   ON CONFLICT (user_id, key)
@@ -107,6 +77,10 @@ CREATE TRIGGER trg_corridas_acumular_xp
 
 -- -----------------------------------------------------------------------------
 -- 4. TRIGGER: atualizar streak após inserção de corrida
+-- Espelha calcStreak() do TempoRun.jsx (~linha 14394):
+-- Conta SEMANAS ÚNICAS com pelo menos uma corrida (não dias consecutivos).
+-- Semana = domingo da semana (date_trunc('week', ...) no PostgreSQL usa segunda —
+-- usamos EXTRACT(DOW) para recuar ao domingo manualmente.
 -- -----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION trg_atualizar_streak()
@@ -115,48 +89,28 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  v_hoje          date;
-  v_ultima_data   date;
-  v_streak_atual  integer;
-  v_streak_max    integer;
-  v_diff_dias     integer;
-  v_novo_streak   integer;
+  v_novo_streak  integer;
+  v_streak_max   integer;
 BEGIN
-  v_hoje := (NEW.data_fim::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date;
+  -- Conta semanas únicas com corrida para este usuário
+  -- (inclui a corrida que acabou de ser inserida)
+  SELECT COUNT(DISTINCT
+    (timestamp::date - EXTRACT(DOW FROM timestamp::date)::integer)
+  )
+  INTO v_novo_streak
+  FROM corridas
+  WHERE user_id = NEW.user_id;
 
-  -- Lê estado atual do streak
-  SELECT
-    MAX(CASE WHEN key = 'streak_atual'       THEN value::integer END),
-    MAX(CASE WHEN key = 'streak_maximo'      THEN value::integer END),
-    MAX(CASE WHEN key = 'streak_ultima_data' THEN value::date    END)
-  INTO v_streak_atual, v_streak_max, v_ultima_data
+  -- Lê streak máximo atual
+  SELECT COALESCE(value::integer, 0) INTO v_streak_max
   FROM user_data
-  WHERE user_id = NEW.user_id
-    AND key IN ('streak_atual', 'streak_maximo', 'streak_ultima_data');
+  WHERE user_id = NEW.user_id AND key = 'streak_maximo';
 
-  v_streak_atual := COALESCE(v_streak_atual, 0);
-  v_streak_max   := COALESCE(v_streak_max,   0);
+  v_streak_max := GREATEST(v_novo_streak, COALESCE(v_streak_max, 0));
 
-  -- Calcula diferença em dias
-  IF v_ultima_data IS NULL THEN
-    v_diff_dias := 999;
-  ELSE
-    v_diff_dias := v_hoje - v_ultima_data;
-  END IF;
-
-  -- Lógica de streak
-  IF    v_diff_dias = 0 THEN v_novo_streak := v_streak_atual;      -- mesma data
-  ELSIF v_diff_dias = 1 THEN v_novo_streak := v_streak_atual + 1;  -- consecutivo
-  ELSE                       v_novo_streak := 1;                   -- quebrou
-  END IF;
-
-  v_streak_max := GREATEST(v_novo_streak, v_streak_max);
-
-  -- Upsert dos três valores
   INSERT INTO user_data (user_id, key, value) VALUES
-    (NEW.user_id, 'streak_atual',       v_novo_streak::text),
-    (NEW.user_id, 'streak_ultima_data', v_hoje::text),
-    (NEW.user_id, 'streak_maximo',      v_streak_max::text)
+    (NEW.user_id, 'streak_atual',  v_novo_streak::text),
+    (NEW.user_id, 'streak_maximo', v_streak_max::text)
   ON CONFLICT (user_id, key)
   DO UPDATE SET value = EXCLUDED.value;
 
@@ -171,6 +125,9 @@ CREATE TRIGGER trg_corridas_streak
 
 -- -----------------------------------------------------------------------------
 -- 5. TRIGGER: verificar e atualizar recordes pessoais
+-- Espelha RP_TRACKED_DISTANCES + rpAttemptFromRun do TempoRun.jsx (~linha 3933)
+-- 12 distâncias rastreadas; elegível para qualquer distância que a corrida COBRE.
+-- Tempo interpolado proporcionalmente: ROUND(duracao_seg * (dist_km / distancia_km))
 -- -----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION trg_verificar_recordes()
@@ -179,47 +136,69 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  v_distancia_label text;
-  v_tempo_atual     integer;
+  dist            RECORD;
+  tempo_interpolado integer;
+  tempo_existente   integer;
+  pace_seg          numeric;
+
+  -- 12 distâncias rastreadas (label, km)
+  distancias CONSTANT text[][] := ARRAY[
+    ARRAY['400m',  '0.4'   ],
+    ARRAY['800m',  '0.8'   ],
+    ARRAY['1K',    '1.0'   ],
+    ARRAY['1.6K',  '1.609' ],
+    ARRAY['3.2K',  '3.219' ],
+    ARRAY['5K',    '5.0'   ],
+    ARRAY['10K',   '10.0'  ],
+    ARRAY['15K',   '15.0'  ],
+    ARRAY['10MI',  '16.093'],
+    ARRAY['21K',   '21.097'],
+    ARRAY['42K',   '42.195'],
+    ARRAY['50K',   '50.0'  ]
+  ];
+  i integer;
+  dist_label text;
+  dist_km    numeric;
 BEGIN
-  -- Determina a faixa de distância
-  v_distancia_label := CASE
-    WHEN NEW.distancia_km BETWEEN 0.9  AND 1.1  THEN '1km'
-    WHEN NEW.distancia_km BETWEEN 4.8  AND 5.2  THEN '5km'
-    WHEN NEW.distancia_km BETWEEN 9.8  AND 10.2 THEN '10km'
-    WHEN NEW.distancia_km BETWEEN 20.8 AND 21.4 THEN '21km'
-    WHEN NEW.distancia_km BETWEEN 41.8 AND 42.6 THEN '42km'
-    ELSE NULL
-  END;
+  FOR i IN 1..array_length(distancias, 1) LOOP
+    dist_label := distancias[i][1];
+    dist_km    := distancias[i][2]::numeric;
 
-  -- Sem distância de referência, ignora
-  IF v_distancia_label IS NULL THEN RETURN NEW; END IF;
+    -- Corrida cobre essa distância?
+    IF NEW.distancia_km < dist_km - 0.01 THEN CONTINUE; END IF;
 
-  -- Busca recorde existente
-  SELECT tempo_seg INTO v_tempo_atual
-  FROM recordes_pessoais
-  WHERE user_id = NEW.user_id
-    AND distancia_label = v_distancia_label;
+    -- Interpola o tempo proporcionalmente
+    tempo_interpolado := GREATEST(1, ROUND(NEW.duracao_seg * (dist_km / NEW.distancia_km))::integer);
 
-  -- Atualiza apenas se for melhor (menor tempo) ou novo
-  IF v_tempo_atual IS NULL OR NEW.duracao_seg < v_tempo_atual THEN
-    INSERT INTO recordes_pessoais (
-      user_id, distancia_label, tempo_seg, pace_medio, data_corrida, source
-    ) VALUES (
-      NEW.user_id,
-      v_distancia_label,
-      NEW.duracao_seg,
-      NEW.pace_medio,
-      COALESCE(NEW.data_inicio, NEW.timestamp),
-      NEW.source
-    )
-    ON CONFLICT (user_id, distancia_label)
-    DO UPDATE SET
-      tempo_seg    = EXCLUDED.tempo_seg,
-      pace_medio   = EXCLUDED.pace_medio,
-      data_corrida = EXCLUDED.data_corrida,
-      source       = EXCLUDED.source;
-  END IF;
+    -- Busca recorde existente
+    SELECT tempo_seg INTO tempo_existente
+    FROM recordes_pessoais
+    WHERE user_id = NEW.user_id AND distancia_label = dist_label;
+
+    -- Atualiza apenas se for melhor (menor tempo) ou novo
+    IF tempo_existente IS NULL OR tempo_interpolado < tempo_existente THEN
+      -- pace em seg/km
+      pace_seg := tempo_interpolado / dist_km;
+
+      INSERT INTO recordes_pessoais (
+        user_id, distancia_label, tempo_seg, pace_medio, data_corrida, source
+      ) VALUES (
+        NEW.user_id,
+        dist_label,
+        tempo_interpolado,
+        TO_CHAR(FLOOR(pace_seg / 60)::integer, 'FM9999') || ':' ||
+          TO_CHAR(ROUND(MOD(pace_seg, 60))::integer, 'FM00') || '/km',
+        COALESCE(NEW.data_inicio, NEW.timestamp),
+        NEW.source
+      )
+      ON CONFLICT (user_id, distancia_label)
+      DO UPDATE SET
+        tempo_seg    = EXCLUDED.tempo_seg,
+        pace_medio   = EXCLUDED.pace_medio,
+        data_corrida = EXCLUDED.data_corrida,
+        source       = EXCLUDED.source;
+    END IF;
+  END LOOP;
 
   RETURN NEW;
 END;
@@ -232,7 +211,6 @@ CREATE TRIGGER trg_corridas_recordes
 
 -- -----------------------------------------------------------------------------
 -- 6. CONSTRAINT UNIQUE em user_data (necessária para os ON CONFLICT acima)
--- Verifica se já existe; se não, cria
 -- -----------------------------------------------------------------------------
 
 DO $$
