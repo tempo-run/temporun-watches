@@ -59,7 +59,7 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.temporun.run.watchkitapp.widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.temporun.run.watchkitapp.watchkitextension
         SWIFT_VERSION: "5.9"
         PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Extension Distribution
         CODE_SIGN_IDENTITY: "Apple Distribution"
