@@ -6,12 +6,12 @@ workflows:
 
     environment:
       xcode: latest
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.temporun.run.watchkitapp
       vars:
-        BUNDLE_ID: com.temporun.run.watchkitapp
         XCODE_SCHEME: TempoRunWatch
+        BUNDLE_ID: com.temporun.run.watchkitapp
+        BUNDLE_ID_WIDGET: com.temporun.run.watchkitapp.watchkitextension
+      groups:
+        - app_store_credentials   # grupo com as 3 vars do App Store Connect
 
     scripts:
       - name: Instalar XcodeGen
@@ -21,12 +21,18 @@ workflows:
         working_directory: apple
         script: xcodegen generate
 
-      - name: Instalar dependências (se houver)
-        working_directory: apple
+      - name: Instalar provisioning profiles
         script: |
-          if [ -f Podfile ]; then pod install; fi
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_HOME"
 
-      - name: Build watchOS
+          # Decodifica cada profile salvo no Codemagic e instala
+          find "$CM_BUILD_DIR" -name "*.mobileprovision" -exec cp {} "$PROFILES_HOME/" \; 2>/dev/null || true
+
+          # Alternativa: usar keychain do Codemagic
+          keychain initialize
+
+      - name: Build watchOS (archive)
         working_directory: apple
         script: |
           xcodebuild \
@@ -36,8 +42,10 @@ workflows:
             -configuration Release \
             -archivePath build/TempoRunWatch.xcarchive \
             archive \
+            DEVELOPMENT_TEAM=N48XV6SR5A \
             CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE_SPECIFIER="TempoRun Watch Distribution"
+            "PROVISIONING_PROFILE_SPECIFIER=TempoRun Watch Distribution" \
+            CODE_SIGN_IDENTITY="Apple Distribution"
 
       - name: Export IPA
         working_directory: apple
@@ -45,10 +53,12 @@ workflows:
           xcodebuild -exportArchive \
             -archivePath build/TempoRunWatch.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist exportOptions.plist
+            -exportOptionsPlist exportOptions.plist \
+            -allowProvisioningUpdates
 
     artifacts:
       - apple/build/export/*.ipa
+      - apple/build/export/*.dSYM.zip
 
     publishing:
       app_store_connect:
