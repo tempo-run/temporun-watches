@@ -25,6 +25,22 @@ struct SupabaseConfig {
     }
 }
 
+// MARK: - Resultado da edge function
+
+struct WatchSaveResult: Codable {
+    let corrida_id: String
+    let xp_ganho: Int
+    let streak_atual: Int
+    let novos_recordes: [RecordPayload]
+    let is_duplicate: Bool
+}
+
+struct RecordPayload: Codable {
+    let distancia: String
+    let tempo_anterior: Int?
+    let tempo_novo: Int
+}
+
 // MARK: - Erros
 
 enum SupabaseError: Error, LocalizedError {
@@ -59,32 +75,58 @@ final class SupabaseClient {
         session = URLSession(configuration: config)
     }
 
-    // MARK: - Inserir corrida na tabela corridas
+    // MARK: - Salvar corrida via edge function watch-workout-save
+    // Calcula XP, streak e recordes atomicamente no servidor
 
-    func insertCorrida(_ payload: [String: Any]) async throws {
+    @discardableResult
+    func insertCorrida(_ payload: [String: Any]) async throws -> WatchSaveResult {
         guard SupabaseConfig.isConfigured else { throw SupabaseError.notConfigured }
-        guard let url = URL(string: "\(SupabaseConfig.url)/rest/v1/corridas") else {
+        guard let url = URL(string: "\(SupabaseConfig.url)/functions/v1/watch-workout-save") else {
             throw SupabaseError.invalidURL
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json",          forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json",          forHTTPHeaderField: "Accept")
-        request.setValue(SupabaseConfig.anonKey,      forHTTPHeaderField: "apikey")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(SupabaseConfig.accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("return=minimal",            forHTTPHeaderField: "Prefer")
-
-        // Injeta user_id
-        var body = payload
-        body["user_id"] = SupabaseConfig.userId
-        body["source"]  = "apple_watch_standalone"
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { return }
+        guard let http = response as? HTTPURLResponse else {
+            throw SupabaseError.httpError(0, "sem resposta")
+        }
 
+        if http.statusCode == 401 { throw SupabaseError.httpError(401, "token expirado") }
+
+        if !(200...299).contains(http.statusCode) {
+            let msg = String(data: data, encoding: .utf8) ?? "erro desconhecido"
+            throw SupabaseError.httpError(http.statusCode, msg)
+        }
+
+        // Decodifica resultado com XP e streak para exibir no SummaryView
+        let result = try JSONDecoder().decode(WatchSaveResult.self, from: data)
+        return result
+    }
+
+    // MARK: - Fallback REST direto (usado quando edge function não está disponível)
+
+    func insertCorridaREST(_ payload: [String: Any]) async throws {
+        guard SupabaseConfig.isConfigured else { throw SupabaseError.notConfigured }
+        guard let url = URL(string: "\(SupabaseConfig.url)/rest/v1/corridas") else {
+            throw SupabaseError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(SupabaseConfig.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        var body = payload
+        body["user_id"] = SupabaseConfig.userId
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { return }
         if !(200...299).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? "erro desconhecido"
             throw SupabaseError.httpError(http.statusCode, msg)

@@ -145,6 +145,7 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var state: WorkoutState = .idle
     @Published var elapsedTime: TimeInterval = 0
     @Published var metrics = LiveMetrics()
+    @Published var saveResult: WatchSaveResult?
 
     // Atalhos para as views
     var distanceKm: Double    { metrics.distanceKm }
@@ -393,13 +394,12 @@ class WorkoutManager: NSObject, ObservableObject {
 
         if NetworkMonitor.shared.isConnected && SupabaseConfig.isConfigured {
             do {
-                try await SupabaseClient.shared.insertCorrida(dict)
+                let result = try await SupabaseClient.shared.insertCorrida(dict)
+                saveResult = result
             } catch {
-                // Rede falhou durante tentativa — enfileira
                 await OfflineQueue.shared.enqueue(dict)
             }
         } else {
-            // Sem rede — enfileira para sync posterior
             await OfflineQueue.shared.enqueue(dict)
         }
     }

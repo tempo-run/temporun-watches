@@ -16,6 +16,12 @@ extension TimeInterval {
     }
 }
 
+extension Int {
+    var formattedDuration: String {
+        TimeInterval(self).formattedDuration
+    }
+}
+
 extension Double {
     // self = segundos/km
     var formattedPace: String {

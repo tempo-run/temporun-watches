@@ -83,6 +83,22 @@ struct SummaryView: View {
                     divider()
                 }
 
+                // XP, streak e recordes (quando disponível via edge function)
+                if let result = workoutManager.saveResult, !result.is_duplicate {
+                    divider()
+                    group("Conquistas") {
+                        SRow(icon: "bolt.fill",  label: "XP ganho",
+                             value: "+\(result.xp_ganho) XP",        color: .tempoOrange)
+                        SRow(icon: "flame.fill", label: "Streak",
+                             value: "\(result.streak_atual) dias",    color: .orange)
+                        ForEach(result.novos_recordes, id: \.distancia) { pr in
+                            SRow(icon: "trophy.fill", label: "PR \(pr.distancia)",
+                                 value: pr.tempo_novo.formattedDuration, color: .yellow)
+                        }
+                    }
+                    divider()
+                }
+
                 Button(action: { workoutManager.resetWorkout() }) {
                     Text("Nova corrida")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
