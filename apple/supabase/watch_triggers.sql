@@ -173,30 +173,30 @@ BEGIN
     -- Busca recorde existente
     SELECT tempo_seg INTO tempo_existente
     FROM recordes_pessoais
-    WHERE user_id = NEW.user_id AND distancia_label = dist_label;
+    WHERE user_id = NEW.user_id AND distancia = dist_label;
 
     -- Atualiza apenas se for melhor (menor tempo) ou novo
     IF tempo_existente IS NULL OR tempo_interpolado < tempo_existente THEN
-      -- pace em seg/km
+      -- pace em seg/km → "M:SS/km"
       pace_seg := tempo_interpolado / dist_km;
 
       INSERT INTO recordes_pessoais (
-        user_id, distancia_label, tempo_seg, pace_medio, data_corrida, source
+        user_id, distancia, tempo_seg, tempo_display, data_rp, corrida_id
       ) VALUES (
         NEW.user_id,
         dist_label,
         tempo_interpolado,
         TO_CHAR(FLOOR(pace_seg / 60)::integer, 'FM9999') || ':' ||
           TO_CHAR(ROUND(MOD(pace_seg, 60))::integer, 'FM00') || '/km',
-        COALESCE(NEW.data_inicio, NEW.timestamp),
-        NEW.source
+        COALESCE(NEW.data_inicio::date, NEW.timestamp::date),
+        NEW.id
       )
-      ON CONFLICT (user_id, distancia_label)
+      ON CONFLICT (user_id, distancia)
       DO UPDATE SET
-        tempo_seg    = EXCLUDED.tempo_seg,
-        pace_medio   = EXCLUDED.pace_medio,
-        data_corrida = EXCLUDED.data_corrida,
-        source       = EXCLUDED.source;
+        tempo_seg     = EXCLUDED.tempo_seg,
+        tempo_display = EXCLUDED.tempo_display,
+        data_rp       = EXCLUDED.data_rp,
+        corrida_id    = EXCLUDED.corrida_id;
     END IF;
   END LOOP;
 
@@ -236,7 +236,7 @@ BEGIN
     WHERE conname = 'recordes_pessoais_user_distancia_unique'
   ) THEN
     ALTER TABLE recordes_pessoais ADD CONSTRAINT recordes_pessoais_user_distancia_unique
-      UNIQUE (user_id, distancia_label);
+      UNIQUE (user_id, distancia);
   END IF;
 END;
 $$;
