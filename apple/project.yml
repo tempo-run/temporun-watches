@@ -1,0 +1,35 @@
+name: TempoRunWatch
+options:
+  bundleIdPrefix: com.temporun.run
+  deploymentTarget:
+    watchOS: "10.0"
+  xcodeVersion: "15"
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: "" # preencher com o Team ID da Apple Developer
+
+targets:
+  TempoRunWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    bundleId: com.temporun.run.watchkitapp
+    info:
+      path: TempoRunWatch/Info.plist
+      properties:
+        CFBundleDisplayName: TempoRun
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        WKWatchOnly: true
+    entitlements:
+      path: TempoRunWatch/TempoRunWatch.entitlements
+    settings:
+      base:
+        INFOPLIST_FILE: TempoRunWatch/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.temporun.run.watchkitapp
+        SWIFT_VERSION: "5.9"
+    sources:
+      - path: TempoRunWatch/Sources
+    capabilities:
+      healthkit: {}
