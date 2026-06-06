@@ -613,7 +613,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
         Task { @MainActor in
             for type in collectedTypes {
                 guard let qty = type as? HKQuantityType else { continue }
-                self.update(from: workoutBuilder.statistics(for: qty), type: qty.identifier)
+                self.update(from: workoutBuilder.statistics(for: qty), type: HKQuantityTypeIdentifier(rawValue: qty.identifier))
             }
         }
     }

@@ -1,10 +1,6 @@
 import ClockKit
 import SwiftUI
 
-private extension Color {
-    static let tempoOrange = Color(red: 1.0, green: 0.42, blue: 0.21)
-}
-
 // MARK: - Dados compartilhados para as complicações
 
 struct ComplicationData: Codable {

@@ -66,3 +66,4 @@ targets:
     sources:
       - path: TempoRunWatch/Sources/TempoRunWatch/Complications/WidgetBundle.swift
       - path: TempoRunWatch/Sources/TempoRunWatch/Complications/ComplicationProvider.swift
+      - path: TempoRunWatch/Sources/TempoRunWatch/Extensions.swift

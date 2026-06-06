@@ -45,7 +45,7 @@ private struct PrimaryPage: View {
             // FC + zona
             HStack(spacing: 4) {
                 Image(systemName: "heart.fill").foregroundColor(zoneColor(wm.metrics.currentZone)).font(.system(size: 12))
-                Text("\(wm.metrics.heartRate, specifier: "%.0f")")
+                Text("\(wm.metrics.heartRate, default: "%.0f")")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundColor(.white).monospacedDigit()
                 Text("bpm")
@@ -59,7 +59,7 @@ private struct PrimaryPage: View {
             HStack(spacing: 0) {
                 MetricCell(value: wm.metrics.averagePace.formattedPace, unit: "médio")
                 Divider().background(Color.gray.opacity(0.3)).frame(height: 28)
-                MetricCell(value: "\(wm.metrics.cadence, specifier: "%.0f")", unit: "spm")
+                MetricCell(value: "\(wm.metrics.cadence, default: "%.0f")", unit: "spm")
             }
         }
         .padding(.horizontal, 6)
@@ -76,15 +76,15 @@ private struct BiomechanicsPage: View {
         ScrollView {
             VStack(spacing: 5) {
                 pageTitle("Biomecânica")
-                Row(icon: "bolt.fill",              label: "Potência",        value: "\(m.runningPower, specifier: "%.0f") W",  color: .tempoOrange)
-                Row(icon: "arrow.left.and.right",   label: "Passada",         value: "\(m.strideLength, specifier: "%.2f") m")
-                Row(icon: "timer",                  label: "Contato solo",    value: "\(m.groundContactTime, specifier: "%.0f") ms")
-                Row(icon: "arrow.up.and.down",      label: "Oscilação vert.", value: "\(m.verticalOscillation, specifier: "%.1f") cm")
-                Row(icon: "percent",                label: "Vert. Ratio",     value: "\(m.verticalRatio, specifier: "%.1f") %", color: .tempoOrange)
-                Row(icon: "shoeprints.fill",        label: "Cadência",        value: "\(m.cadence, specifier: "%.0f") spm")
-                Row(icon: "figure.run",             label: "Passos",          value: "\(m.stepCount, specifier: "%.0f")")
-                Row(icon: "gauge.medium",           label: "Esforço",         value: "\(m.physicalEffort, specifier: "%.1f") MET")
-                Row(icon: "speedometer",            label: "Velocidade",      value: "\(m.currentSpeed, specifier: "%.1f") m/s")
+                Row(icon: "bolt.fill",              label: "Potência",        value: "\(m.runningPower, default: "%.0f") W",  color: .tempoOrange)
+                Row(icon: "arrow.left.and.right",   label: "Passada",         value: "\(m.strideLength, default: "%.2f") m")
+                Row(icon: "timer",                  label: "Contato solo",    value: "\(m.groundContactTime, default: "%.0f") ms")
+                Row(icon: "arrow.up.and.down",      label: "Oscilação vert.", value: "\(m.verticalOscillation, default: "%.1f") cm")
+                Row(icon: "percent",                label: "Vert. Ratio",     value: "\(m.verticalRatio, default: "%.1f") %", color: .tempoOrange)
+                Row(icon: "shoeprints.fill",        label: "Cadência",        value: "\(m.cadence, default: "%.0f") spm")
+                Row(icon: "figure.run",             label: "Passos",          value: "\(m.stepCount, default: "%.0f")")
+                Row(icon: "gauge.medium",           label: "Esforço",         value: "\(m.physicalEffort, default: "%.1f") MET")
+                Row(icon: "speedometer",            label: "Velocidade",      value: "\(m.currentSpeed, default: "%.1f") m/s")
             }
             .padding(.horizontal, 6)
         }
@@ -101,9 +101,9 @@ private struct EnergyPage: View {
         ScrollView {
             VStack(spacing: 5) {
                 pageTitle("Energia")
-                Row(icon: "flame.fill",   label: "Ativa",    value: "\(m.activeEnergyBurned, specifier: "%.0f") kcal", color: .tempoOrange)
-                Row(icon: "flame",        label: "Basal",    value: "\(m.basalEnergyBurned, specifier: "%.0f") kcal")
-                Row(icon: "sum",          label: "Total",    value: "\(m.totalEnergyBurned, specifier: "%.0f") kcal",   color: .yellow)
+                Row(icon: "flame.fill",   label: "Ativa",    value: "\(m.activeEnergyBurned, default: "%.0f") kcal", color: .tempoOrange)
+                Row(icon: "flame",        label: "Basal",    value: "\(m.basalEnergyBurned, default: "%.0f") kcal")
+                Row(icon: "sum",          label: "Total",    value: "\(m.totalEnergyBurned, default: "%.0f") kcal",   color: .yellow)
                 divider()
                 // Zonas de FC — tempo acumulado
                 pageTitle("Tempo em zonas")
@@ -126,15 +126,15 @@ private struct CardioPage: View {
         ScrollView {
             VStack(spacing: 5) {
                 pageTitle("Cardio & Saúde")
-                Row(icon: "heart.fill",         label: "FC atual",    value: "\(m.heartRate, specifier: "%.0f") bpm",         color: zoneColor(m.currentZone))
-                Row(icon: "heart.circle",       label: "FC média",    value: "\(m.averageHeartRate, specifier: "%.0f") bpm")
-                Row(icon: "arrow.down.heart",   label: "FC mín",      value: "\(m.minHeartRate == 999 ? 0 : m.minHeartRate, specifier: "%.0f") bpm", color: .blue)
-                Row(icon: "arrow.up.heart",     label: "FC máx",      value: "\(m.maxHeartRate, specifier: "%.0f") bpm",      color: .red)
-                Row(icon: "heart.text.square",  label: "FC repouso",  value: "\(m.restingHeartRate, specifier: "%.0f") bpm")
-                Row(icon: "waveform.path.ecg",  label: "HRV (SDNN)",  value: "\(m.heartRateVariability, specifier: "%.1f") ms", color: .tempoOrange)
-                Row(icon: "lungs.fill",         label: "SpO₂",        value: "\(m.oxygenSaturation, specifier: "%.0f") %",   color: .blue)
-                Row(icon: "wind",               label: "Respiração",   value: "\(m.respiratoryRate, specifier: "%.0f") r/min")
-                Row(icon: "chart.bar.fill",     label: "VO₂ máx",     value: "\(m.vo2Max, specifier: "%.1f") ml/kg", color: .green)
+                Row(icon: "heart.fill",         label: "FC atual",    value: "\(m.heartRate, default: "%.0f") bpm",         color: zoneColor(m.currentZone))
+                Row(icon: "heart.circle",       label: "FC média",    value: "\(m.averageHeartRate, default: "%.0f") bpm")
+                Row(icon: "arrow.down.heart",   label: "FC mín",      value: "\(m.minHeartRate == 999 ? 0 : m.minHeartRate, default: "%.0f") bpm", color: .blue)
+                Row(icon: "arrow.up.heart",     label: "FC máx",      value: "\(m.maxHeartRate, default: "%.0f") bpm",      color: .red)
+                Row(icon: "heart.text.square",  label: "FC repouso",  value: "\(m.restingHeartRate, default: "%.0f") bpm")
+                Row(icon: "waveform.path.ecg",  label: "HRV (SDNN)",  value: "\(m.heartRateVariability, default: "%.1f") ms", color: .tempoOrange)
+                Row(icon: "lungs.fill",         label: "SpO₂",        value: "\(m.oxygenSaturation, default: "%.0f") %",   color: .blue)
+                Row(icon: "wind",               label: "Respiração",   value: "\(m.respiratoryRate, default: "%.0f") r/min")
+                Row(icon: "chart.bar.fill",     label: "VO₂ máx",     value: "\(m.vo2Max, default: "%.1f") ml/kg", color: .green)
             }
             .padding(.horizontal, 6)
         }
@@ -151,12 +151,12 @@ private struct AltitudePage: View {
         ScrollView {
             VStack(spacing: 5) {
                 pageTitle("Altitude & GPS")
-                Row(icon: "location.fill",      label: "Altitude atual",  value: "\(m.currentAltitude, specifier: "%.0f") m",  color: .tempoOrange)
-                Row(icon: "arrow.up.right",     label: "Ganho elev.",     value: "+ \(m.elevationGain, specifier: "%.0f") m",  color: .green)
-                Row(icon: "arrow.down.right",   label: "Perda elev.",     value: "- \(m.elevationLoss, specifier: "%.0f") m",  color: .red)
-                Row(icon: "mountain.2.fill",    label: "Altitude máx",    value: "\(m.maxAltitude, specifier: "%.0f") m")
-                Row(icon: "arrow.down.to.line", label: "Altitude mín",    value: "\(m.minAltitude == 9999 ? 0 : m.minAltitude, specifier: "%.0f") m")
-                Row(icon: "stairs",             label: "Lances subidos",  value: "\(m.flightsClimbed, specifier: "%.0f")")
+                Row(icon: "location.fill",      label: "Altitude atual",  value: "\(m.currentAltitude, default: "%.0f") m",  color: .tempoOrange)
+                Row(icon: "arrow.up.right",     label: "Ganho elev.",     value: "+ \(m.elevationGain, default: "%.0f") m",  color: .green)
+                Row(icon: "arrow.down.right",   label: "Perda elev.",     value: "- \(m.elevationLoss, default: "%.0f") m",  color: .red)
+                Row(icon: "mountain.2.fill",    label: "Altitude máx",    value: "\(m.maxAltitude, default: "%.0f") m")
+                Row(icon: "arrow.down.to.line", label: "Altitude mín",    value: "\(m.minAltitude == 9999 ? 0 : m.minAltitude, default: "%.0f") m")
+                Row(icon: "stairs",             label: "Lances subidos",  value: "\(m.flightsClimbed, default: "%.0f")")
             }
             .padding(.horizontal, 6)
         }
@@ -216,7 +216,7 @@ private struct SplitRow: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .monospacedDigit()
 
-            Text(split.avgHeartRate > 0 ? "\(split.avgHeartRate, specifier: "%.0f")" : "--")
+            Text(split.avgHeartRate > 0 ? "\(split.avgHeartRate, default: "%.0f")" : "--")
                 .font(.system(size: 12, design: .rounded))
                 .foregroundColor(.red)
                 .frame(width: 40, alignment: .trailing)

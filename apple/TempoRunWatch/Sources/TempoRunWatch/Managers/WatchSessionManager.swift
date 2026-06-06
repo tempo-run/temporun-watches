@@ -99,6 +99,11 @@ struct SplitPayload: Codable {
     }
 }
 
+// Sync key used by iPhone to push credentials to the watch
+enum CredentialSyncToWatch {
+    static let contextKey = "credentialSync"
+}
+
 // MARK: - WatchSessionManager
 
 final class WatchSessionManager: NSObject, ObservableObject {
@@ -191,7 +196,7 @@ extension WatchSessionManager: WCSessionDelegate {
         }
         // Dados de complicação
         if let data = applicationContext[ComplicationData.contextKey] as? Data,
-           let comp = try? JSONDecoder().decode(ComplicationDataTransfer.self, from: data) {
+           let comp = try? JSONDecoder().decode(ComplicationData.self, from: data) {
             applyComplicationData(comp)
         }
     }
@@ -217,7 +222,7 @@ extension WatchSessionManager: WCSessionDelegate {
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         // Dados de complicação com prioridade máxima
         if let data = userInfo[ComplicationData.contextKey] as? Data,
-           let comp = try? JSONDecoder().decode(ComplicationDataTransfer.self, from: data) {
+           let comp = try? JSONDecoder().decode(ComplicationData.self, from: data) {
             applyComplicationData(comp)
             return
         }
@@ -227,17 +232,8 @@ extension WatchSessionManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveMessageData messageData: Data) {}
 
-    private func applyComplicationData(_ comp: ComplicationDataTransfer) {
-        // Persiste no App Group para o ComplicationProvider ler
-        var cd = ComplicationData()
-        cd.weeklyKm        = comp.weeklyKm
-        cd.weeklyGoalKm    = comp.weeklyGoalKm
-        cd.streakDays      = comp.streakDays
-        cd.xp              = comp.xp
-        cd.nextWorkoutType = comp.nextWorkoutType
-        cd.nextWorkoutKm   = comp.nextWorkoutKm
-        cd.nextWorkoutPace = comp.nextWorkoutPace
-        cd.nextWorkoutDay  = comp.nextWorkoutDay
+    private func applyComplicationData(_ comp: ComplicationData) {
+        var cd = comp
         cd.save()
     }
 }

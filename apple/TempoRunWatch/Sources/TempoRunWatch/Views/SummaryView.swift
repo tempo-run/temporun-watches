@@ -24,50 +24,50 @@ struct SummaryView: View {
                     SRow(icon: "clock",          label: "Tempo",        value: workoutManager.elapsedTime.formattedDuration)
                     SRow(icon: "speedometer",    label: "Pace médio",   value: m.averagePace.formattedPace + "/km")
                     SRow(icon: "speedometer",    label: "Melhor pace",  value: m.bestPace.formattedPace + "/km",           color: .tempoOrange)
-                    SRow(icon: "gauge.medium",   label: "Vel. média",   value: "\(m.currentSpeed, specifier: "%.1f") m/s")
+                    SRow(icon: "gauge.medium",   label: "Vel. média",   value: "\(m.currentSpeed, default: "%.1f") m/s")
                 }
 
                 divider()
 
                 // Cardio
                 group("Cardio") {
-                    SRow(icon: "heart.fill",        label: "FC média",    value: "\(m.averageHeartRate, specifier: "%.0f") bpm", color: .red)
-                    SRow(icon: "arrow.down.heart",  label: "FC mín",      value: "\(m.minHeartRate == 999 ? 0 : m.minHeartRate, specifier: "%.0f") bpm", color: .blue)
-                    SRow(icon: "arrow.up.heart",    label: "FC máx",      value: "\(m.maxHeartRate, specifier: "%.0f") bpm", color: .red)
-                    SRow(icon: "waveform.path.ecg", label: "HRV",         value: "\(m.heartRateVariability, specifier: "%.1f") ms", color: .tempoOrange)
-                    SRow(icon: "lungs.fill",        label: "SpO₂",        value: "\(m.oxygenSaturation, specifier: "%.0f") %", color: .blue)
-                    SRow(icon: "chart.bar.fill",    label: "VO₂ máx",     value: "\(m.vo2Max, specifier: "%.1f") ml/kg", color: .green)
+                    SRow(icon: "heart.fill",        label: "FC média",    value: "\(m.averageHeartRate, default: "%.0f") bpm", color: .red)
+                    SRow(icon: "arrow.down.heart",  label: "FC mín",      value: "\(m.minHeartRate == 999 ? 0 : m.minHeartRate, default: "%.0f") bpm", color: .blue)
+                    SRow(icon: "arrow.up.heart",    label: "FC máx",      value: "\(m.maxHeartRate, default: "%.0f") bpm", color: .red)
+                    SRow(icon: "waveform.path.ecg", label: "HRV",         value: "\(m.heartRateVariability, default: "%.1f") ms", color: .tempoOrange)
+                    SRow(icon: "lungs.fill",        label: "SpO₂",        value: "\(m.oxygenSaturation, default: "%.0f") %", color: .blue)
+                    SRow(icon: "chart.bar.fill",    label: "VO₂ máx",     value: "\(m.vo2Max, default: "%.1f") ml/kg", color: .green)
                 }
 
                 divider()
 
                 // Biomecânica
                 group("Biomecânica") {
-                    SRow(icon: "bolt.fill",             label: "Potência",        value: "\(m.runningPower, specifier: "%.0f") W", color: .tempoOrange)
-                    SRow(icon: "shoeprints.fill",       label: "Cadência",        value: "\(m.cadence, specifier: "%.0f") spm")
-                    SRow(icon: "arrow.left.and.right",  label: "Passada",         value: "\(m.strideLength, specifier: "%.2f") m")
-                    SRow(icon: "arrow.up.and.down",     label: "Oscilação",       value: "\(m.verticalOscillation, specifier: "%.1f") cm")
-                    SRow(icon: "percent",               label: "Vert. Ratio",     value: "\(m.verticalRatio, specifier: "%.1f") %")
-                    SRow(icon: "timer",                 label: "Contato solo",    value: "\(m.groundContactTime, specifier: "%.0f") ms")
-                    SRow(icon: "figure.run",            label: "Passos",          value: "\(m.stepCount, specifier: "%.0f")")
+                    SRow(icon: "bolt.fill",             label: "Potência",        value: "\(m.runningPower, default: "%.0f") W", color: .tempoOrange)
+                    SRow(icon: "shoeprints.fill",       label: "Cadência",        value: "\(m.cadence, default: "%.0f") spm")
+                    SRow(icon: "arrow.left.and.right",  label: "Passada",         value: "\(m.strideLength, default: "%.2f") m")
+                    SRow(icon: "arrow.up.and.down",     label: "Oscilação",       value: "\(m.verticalOscillation, default: "%.1f") cm")
+                    SRow(icon: "percent",               label: "Vert. Ratio",     value: "\(m.verticalRatio, default: "%.1f") %")
+                    SRow(icon: "timer",                 label: "Contato solo",    value: "\(m.groundContactTime, default: "%.0f") ms")
+                    SRow(icon: "figure.run",            label: "Passos",          value: "\(m.stepCount, default: "%.0f")")
                 }
 
                 divider()
 
                 // Energia
                 group("Energia") {
-                    SRow(icon: "flame.fill", label: "Energia ativa",  value: "\(m.activeEnergyBurned, specifier: "%.0f") kcal", color: .tempoOrange)
-                    SRow(icon: "flame",      label: "Total calorias", value: "\(m.totalEnergyBurned, specifier: "%.0f") kcal")
+                    SRow(icon: "flame.fill", label: "Energia ativa",  value: "\(m.activeEnergyBurned, default: "%.0f") kcal", color: .tempoOrange)
+                    SRow(icon: "flame",      label: "Total calorias", value: "\(m.totalEnergyBurned, default: "%.0f") kcal")
                 }
 
                 divider()
 
                 // Altitude
                 group("Altitude") {
-                    SRow(icon: "arrow.up.right",    label: "Ganho elev.",  value: "+ \(m.elevationGain, specifier: "%.0f") m",  color: .green)
-                    SRow(icon: "arrow.down.right",  label: "Perda elev.",  value: "- \(m.elevationLoss, specifier: "%.0f") m",  color: .red)
-                    SRow(icon: "mountain.2.fill",   label: "Alt. máxima",  value: "\(m.maxAltitude, specifier: "%.0f") m")
-                    SRow(icon: "stairs",            label: "Lances",       value: "\(m.flightsClimbed, specifier: "%.0f")")
+                    SRow(icon: "arrow.up.right",    label: "Ganho elev.",  value: "+ \(m.elevationGain, default: "%.0f") m",  color: .green)
+                    SRow(icon: "arrow.down.right",  label: "Perda elev.",  value: "- \(m.elevationLoss, default: "%.0f") m",  color: .red)
+                    SRow(icon: "mountain.2.fill",   label: "Alt. máxima",  value: "\(m.maxAltitude, default: "%.0f") m")
+                    SRow(icon: "stairs",            label: "Lances",       value: "\(m.flightsClimbed, default: "%.0f")")
                 }
 
                 divider()
