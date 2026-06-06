@@ -29,10 +29,6 @@ workflows:
         working_directory: apple
         script: xcodegen generate
 
-      - name: Baixar profiles adicionais (Widget Extension)
-        script: |
-          app-store-connect fetch-signing-files "com.temporun.run.watchkitapp.watchkitextension" --type IOS_APP_STORE --create
-
       - name: Aplicar profiles no projeto
         working_directory: apple
         script: xcode-project use-profiles
