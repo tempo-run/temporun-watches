@@ -22,7 +22,7 @@
     <string>O TempoRun usa o HealthKit para salvar suas corridas e ler sua frequência cardíaca durante o treino.</string>
     <key>NSHealthUpdateUsageDescription</key>
     <string>O TempoRun salva suas corridas e métricas de treino no Apple Health.</string>
-    <key>WKWatchOnly</key>
+    <key>WKApplication</key>
     <true/>
 </dict>
 </plist>

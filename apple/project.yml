@@ -24,7 +24,9 @@ targets:
         CFBundleDisplayName: TempoRun
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
-        WKWatchOnly: true
+        WKApplication: true
+        NSHealthShareUsageDescription: "O TempoRun usa o HealthKit para salvar suas corridas e ler sua frequência cardíaca durante o treino."
+        NSHealthUpdateUsageDescription: "O TempoRun salva suas corridas e métricas de treino no Apple Health."
     entitlements:
       path: TempoRunWatch/TempoRunWatch.entitlements
     settings:
