@@ -1,6 +1,10 @@
 import ClockKit
 import SwiftUI
 
+private extension Color {
+    static let tempoOrange = Color(red: 1.0, green: 0.42, blue: 0.21)
+}
+
 // MARK: - Dados compartilhados para as complicações
 
 struct ComplicationData: Codable {
@@ -26,7 +30,7 @@ struct ComplicationData: Codable {
     }
 
     func save() {
-        let defaults = UserDefaults(suiteName: appGroupID) ?? .standard
+        let defaults = UserDefaults(suiteName: Self.appGroupID) ?? .standard
         if let data = try? JSONEncoder().encode(self) {
             defaults.set(data, forKey: Self.cacheKey)
         }
