@@ -28,4 +28,23 @@ extension Double {
     var formattedDistance: String {
         String(format: "%.2f", self)
     }
+
+    // self = segundos/km
+    var formattedPaceVerbose: String {
+        guard self > 0, self < 3600 else { return "--:--/km" }
+        let m = Int(self) / 60
+        let s = Int(self) % 60
+        return String(format: "%d:%02d/km", m, s)
+    }
+
+    // Para tempos de prova (hh:mm:ss)
+    var formattedRaceTime: String {
+        guard self > 0 else { return "--:--:--" }
+        let h = Int(self) / 3600
+        let m = (Int(self) % 3600) / 60
+        let s = Int(self) % 60
+        return h > 0
+            ? String(format: "%d:%02d:%02d", h, m, s)
+            : String(format: "%02d:%02d", m, s)
+    }
 }
