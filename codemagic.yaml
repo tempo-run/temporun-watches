@@ -19,16 +19,35 @@ workflows:
 
       - name: Configurar keychain e instalar profiles
         script: |
-          keychain initialize
-          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --certificate /tmp/certificate.p12 \
-            --certificate-password $CM_CERTIFICATE_PASSWORD
+          # Cria keychain temporário
+          KEYCHAIN_PATH=$HOME/Library/Keychains/build.keychain
+          KEYCHAIN_PASSWORD=buildpwd123
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Instala certificado
+          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+          security import /tmp/certificate.p12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CM_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/xcodebuild
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Instala provisioning profiles
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
 
           app-store-connect fetch-signing-files $BUNDLE_ID \
             --type IOS_APP_STORE \
             --issuer-id $APP_STORE_CONNECT_ISSUER_ID \
             --key-id $APP_STORE_CONNECT_KEY_IDENTIFIER \
             --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
+            --profiles-dir "$PROFILES_DIR" \
             --create
 
           app-store-connect fetch-signing-files $BUNDLE_ID_WIDGET \
@@ -36,9 +55,10 @@ workflows:
             --issuer-id $APP_STORE_CONNECT_ISSUER_ID \
             --key-id $APP_STORE_CONNECT_KEY_IDENTIFIER \
             --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
+            --profiles-dir "$PROFILES_DIR" \
             --create
 
-          ls ~/Library/MobileDevice/Provisioning\ Profiles/ || true
+          ls "$PROFILES_DIR"
 
       - name: Gerar projeto Xcode
         working_directory: apple
