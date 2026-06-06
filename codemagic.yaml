@@ -12,7 +12,9 @@ workflows:
         XCODE_SCHEME: TempoRunWatch
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.temporun.run.watchkitapp
+        bundle_identifier:
+          - com.temporun.run.watchkitapp
+          - com.temporun.run.watchkitapp.watchkitextension
 
     scripts:
       - name: Instalar XcodeGen
