@@ -58,6 +58,8 @@ workflows:
         working_directory: apple
         script: |
           set -e
+          # App Store so fica disponivel como metodo de export com auth do ASC
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/asc_key.p8
           cat > /tmp/export_options.plist << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -88,6 +90,10 @@ workflows:
             -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
             -exportPath build/ios/ipa \
             -exportOptionsPlist /tmp/export_options.plist \
+            -authenticationKeyPath /tmp/asc_key.p8 \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            -allowProvisioningUpdates \
             COMPILER_INDEX_STORE_ENABLE=NO
           echo "=== IPA exportado ==="
           ls -la build/ios/ipa
