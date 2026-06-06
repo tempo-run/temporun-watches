@@ -26,28 +26,18 @@ workflows:
         working_directory: apple
         script: xcode-project use-profiles
 
-      - name: Build watchOS (archive)
+      - name: Build & export IPA
         working_directory: apple
         script: |
-          xcodebuild \
-            -project TempoRunWatch.xcodeproj \
-            -scheme $XCODE_SCHEME \
-            -destination "generic/platform=watchOS" \
-            -configuration Release \
-            -archivePath build/TempoRunWatch.xcarchive \
-            archive
-
-      - name: Export IPA
-        working_directory: apple
-        script: |
-          xcodebuild -exportArchive \
-            -archivePath build/TempoRunWatch.xcarchive \
-            -exportPath build/export \
-            -exportOptionsPlist exportOptions.plist
+          xcode-project build-ipa \
+            --project TempoRunWatch.xcodeproj \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags="-destination 'generic/platform=watchOS'"
 
     artifacts:
-      - apple/build/export/*.ipa
-      - apple/build/export/*.dSYM.zip
+      - apple/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - apple/**/*.dSYM.zip
 
     publishing:
       app_store_connect:
