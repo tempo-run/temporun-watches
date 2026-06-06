@@ -323,6 +323,13 @@ class WorkoutManager: NSObject, ObservableObject {
             timer?.invalidate()
             locationManager.stopUpdatingLocation()
             metrics.averagePace = metrics.distanceKm > 0 ? elapsedTime / metrics.distanceKm : 0
+
+            // Envia corrida completa ao iPhone via WatchConnectivity
+            if let start = startDate {
+                let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime, startDate: start)
+                WatchSessionManager.shared.sendWorkout(payload)
+            }
+
             state = .ended
         }
     }
@@ -347,6 +354,16 @@ class WorkoutManager: NSObject, ObservableObject {
                     self.metrics.currentPace = self.elapsedTime / self.metrics.distanceKm
                 }
                 self.accumulateZoneSecond()
+
+                // Atualização ao vivo para o iPhone a cada 5 segundos
+                if Int(self.elapsedTime) % 5 == 0 {
+                    WatchSessionManager.shared.sendLiveUpdate(
+                        distanceKm:  self.metrics.distanceKm,
+                        pace:        self.metrics.currentPace,
+                        heartRate:   self.metrics.heartRate,
+                        elapsedTime: self.elapsedTime
+                    )
+                }
             }
         }
     }
