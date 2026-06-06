@@ -10,6 +10,8 @@ settings:
     DEVELOPMENT_TEAM: "" # preencher com o Team ID da Apple Developer
 
 targets:
+
+  # ── App principal watchOS ──────────────────────────────────────────────────
   TempoRunWatch:
     type: application
     platform: watchOS
@@ -30,6 +32,32 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.temporun.run.watchkitapp
         SWIFT_VERSION: "5.9"
     sources:
-      - path: TempoRunWatch/Sources
+      - path: TempoRunWatch/Sources/TempoRunWatch
+        excludes:
+          - Complications/WidgetBundle.swift  # pertence ao widget extension
+    dependencies:
+      - target: TempoRunWatchWidget
     capabilities:
       healthkit: {}
+
+  # ── Widget Extension (Smart Stack + Complicações) ─────────────────────────
+  TempoRunWatchWidget:
+    type: app-extension
+    platform: watchOS
+    deploymentTarget: "10.0"
+    bundleId: com.temporun.run.watchkitapp.widget
+    info:
+      path: TempoRunWatch/WidgetExtension-Info.plist
+      properties:
+        CFBundleDisplayName: TempoRun Widget
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.temporun.run.watchkitapp.widget
+        SWIFT_VERSION: "5.9"
+    sources:
+      - path: TempoRunWatch/Sources/TempoRunWatch/Complications/WidgetBundle.swift
+      - path: TempoRunWatch/Sources/TempoRunWatch/Complications/ComplicationProvider.swift

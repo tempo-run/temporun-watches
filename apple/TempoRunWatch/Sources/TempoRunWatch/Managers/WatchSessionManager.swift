@@ -176,6 +176,30 @@ extension WatchSessionManager: WCSessionDelegate {
         }
     }
 
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {}
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
+        // Dados de complicação com prioridade máxima
+        if let data = userInfo[ComplicationData.contextKey] as? Data,
+           let comp = try? JSONDecoder().decode(ComplicationDataTransfer.self, from: data) {
+            applyComplicationData(comp)
+            return
+        }
+        // Plano de treino enfileirado
+        handlePlanUserInfo(userInfo)
+    }
+
     func session(_ session: WCSession, didReceiveMessageData messageData: Data) {}
+
+    private func applyComplicationData(_ comp: ComplicationDataTransfer) {
+        // Persiste no App Group para o ComplicationProvider ler
+        var cd = ComplicationData()
+        cd.weeklyKm        = comp.weeklyKm
+        cd.weeklyGoalKm    = comp.weeklyGoalKm
+        cd.streakDays      = comp.streakDays
+        cd.xp              = comp.xp
+        cd.nextWorkoutType = comp.nextWorkoutType
+        cd.nextWorkoutKm   = comp.nextWorkoutKm
+        cd.nextWorkoutPace = comp.nextWorkoutPace
+        cd.nextWorkoutDay  = comp.nextWorkoutDay
+        cd.save()
+    }
 }

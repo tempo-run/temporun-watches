@@ -192,10 +192,45 @@ Durante a corrida:
 
 ## Fase 4 — Complicações / Glanceability
 
-| Item | Status |
-|------|--------|
-| Complicação na watch face (streak, XP, próximo treino) | ⏳ planejado |
-| Widget no Smart Stack | ⏳ planejado |
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `ComplicationData` — struct Codable com cache App Group | ✅ | `Complications/ComplicationProvider.swift` |
+| `ComplicationProvider` — `CLKComplicationDataSource` completo | ✅ | `Complications/ComplicationProvider.swift` |
+| 10 famílias de complicação suportadas | ✅ | `ComplicationProvider.swift` |
+| `TempoRunSmartStackWidget` — Widget Extension watchOS 10+ | ✅ | `Complications/WidgetBundle.swift` |
+| `RectangularView` — Smart Stack: progresso semanal + barra + próximo treino | ✅ | `WidgetBundle.swift` |
+| `CircularView` — anel de progresso + km no centro | ✅ | `WidgetBundle.swift` |
+| `CornerView`, `InlineView` — variações de watch face | ✅ | `WidgetBundle.swift` |
+| `ComplicationSyncToWatch.swift` (iOS) — envia via `transferCurrentComplicationUserInfo` | ✅ | `apple/ComplicationSyncToWatch.swift` |
+| `WatchSessionManager` recebe e persiste dados de complicação | ✅ | `WatchSessionManager.swift` |
+| `project.yml` atualizado com target `TempoRunWatchWidget` | ✅ | `apple/project.yml` |
+
+### Dados exibidos nas complicações
+
+| Dado | Origem no app iOS |
+|------|------------------|
+| `weeklyKm` | soma de corridas da semana na tabela `corridas` |
+| `weeklyGoalKm` | meta da semana do plano ativo (`planos_treino`) |
+| `streakDays` | campo de streak do `user_data` |
+| `xp` | XP acumulado do `user_data` |
+| `nextWorkoutType` | próximo treino não-descanso do `planos_treino` |
+| `nextWorkoutKm` | distância do próximo treino |
+| `nextWorkoutDay` | "Hoje", "Amanhã" ou nome do dia |
+
+### Famílias de complicação
+
+| Família | O que mostra |
+|---------|-------------|
+| `graphicRectangular` | Streak + km semana/meta + próximo treino |
+| `graphicCircular` | Anel de progresso + km |
+| `graphicBezel` | Anel + texto de resumo |
+| `graphicCorner` | Gauge + ícone de corrida |
+| `graphicExtraLarge` | Anel grande + streak |
+| `modularLarge` | Header + km/meta + próximo treino |
+| `modularSmall` | km + streak |
+| `utilitarianLarge` | Texto completo: km ou próximo treino |
+| `utilitarianSmall` | km compacto |
+| `circularSmall` | km + "km" |
 
 ---
 
