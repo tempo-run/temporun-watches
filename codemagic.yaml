@@ -168,13 +168,29 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution"
 
-          # 5. Exportar o IPA
-          echo "Exportando IPA para TestFlight..."
-          xcodebuild \
-            -exportArchive \
-            -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
-            -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
-            -exportPath build/ios/ipa
+          # 5. Empacotar o IPA manualmente.
+          #    O xcodebuild -exportArchive falha nesta imagem do Codemagic
+          #    porque o IDEDistributionMethodManager nao carrega os metodos
+          #    de distribuicao ("Unknown Distribution Error") e cai num
+          #    conjunto reduzido que exclui App Store. Como o .app ja sai
+          #    totalmente assinado (Apple Distribution + provisioning profile)
+          #    do passo de archive, montamos o IPA manualmente (Payload/).
+          echo "Empacotando IPA manualmente a partir do .xcarchive..."
+          APP_PATH="build/ios/xcarchive/TempoRunWatch.xcarchive/Products/Applications/TempoRunWatch.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERRO: .app assinado nao encontrado em $APP_PATH"
+            exit 1
+          fi
+
+          rm -rf build/ios/ipa build/ios/Payload
+          mkdir -p build/ios/ipa build/ios/Payload
+          cp -R "$APP_PATH" build/ios/Payload/
+
+          ( cd build/ios && zip -r -y -q ipa/TempoRunWatch.ipa Payload )
+          rm -rf build/ios/Payload
+
+          echo "=== IPA gerado ==="
+          ls -la build/ios/ipa
 
     artifacts:
       - apple/build/ios/ipa/*.ipa
