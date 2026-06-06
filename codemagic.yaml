@@ -33,68 +33,17 @@ workflows:
         working_directory: apple
         script: xcode-project use-profiles
 
-      - name: Archive
-        working_directory: apple
-        script: |
-          xcodebuild \
-            -project TempoRunWatch.xcodeproj \
-            -scheme "$XCODE_SCHEME" \
-            -destination "generic/platform=watchOS" \
-            -configuration Release \
-            -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
-            archive \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            DEVELOPMENT_TEAM=N48XV6SR5A \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            CODE_SIGN_STYLE=Manual
-          echo "=== Products/Applications apos archive ==="
-          ls -la build/ios/xcarchive/TempoRunWatch.xcarchive/Products/Applications/ 2>&1 || echo "(vazio/inexistente)"
-          echo "=== SKIP_INSTALL / INSTALL_PATH / WRAPPER ==="
-          xcodebuild -project TempoRunWatch.xcodeproj -scheme "$XCODE_SCHEME" \
-            -destination "generic/platform=watchOS" -showBuildSettings 2>/dev/null \
-            | grep -E " SKIP_INSTALL| INSTALL_PATH| WRAPPER_NAME| PRODUCT_TYPE" | sort -u || true
-
-      - name: Export IPA
+      - name: Build IPA (archive + export)
         working_directory: apple
         script: |
           set -e
-          # App Store so fica disponivel como metodo de export com auth do ASC
-          printf '%s' "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" > /tmp/asc_key.p8
-          cat > /tmp/export_options.plist << 'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store-connect</string>
-              <key>destination</key>
-              <string>export</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                  <key>com.temporun.run.watchkitapp</key>
-                  <string>TempoRun Watch Distribution</string>
-                  <key>com.temporun.run.watchkitapp.watchkitextension</key>
-                  <string>TempoRun Watch Extension Distribution</string>
-              </dict>
-              <key>signingStyle</key>
-              <string>manual</string>
-              <key>stripSwiftSymbols</key>
-              <true/>
-              <key>uploadSymbols</key>
-              <true/>
-          </dict>
-          </plist>
-          PLIST
-
-          xcodebuild -exportArchive \
-            -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist /tmp/export_options.plist \
-            -authenticationKeyPath /tmp/asc_key.p8 \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-            -allowProvisioningUpdates \
-            COMPILER_INDEX_STORE_ENABLE=NO
+          # build-ipa faz archive + export usando os profiles ja instalados
+          # pelo passo "use-profiles". Nao precisa do PEM no export.
+          xcode-project build-ipa \
+            --project TempoRunWatch.xcodeproj \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags "-destination generic/platform=watchOS" \
+            -- COMPILER_INDEX_STORE_ENABLE=NO
           echo "=== IPA exportado ==="
           ls -la build/ios/ipa
 
