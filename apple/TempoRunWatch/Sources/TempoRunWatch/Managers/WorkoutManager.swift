@@ -2,6 +2,7 @@ import Foundation
 import HealthKit
 import CoreLocation
 import WatchKit
+import WatchConnectivity
 
 enum WorkoutState {
     case idle, running, paused, ended
@@ -324,13 +325,82 @@ class WorkoutManager: NSObject, ObservableObject {
             locationManager.stopUpdatingLocation()
             metrics.averagePace = metrics.distanceKm > 0 ? elapsedTime / metrics.distanceKm : 0
 
-            // Envia corrida completa ao iPhone via WatchConnectivity
-            if let start = startDate {
-                let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime, startDate: start)
+            guard let start = startDate else { state = .ended; return }
+            let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime, startDate: start)
+
+            let iPhoneReachable = WCSession.default.activationState == .activated
+                                  && WCSession.default.isReachable
+
+            if iPhoneReachable {
+                // Caminho A/B: envia ao iPhone (iPhone grava no Supabase)
                 WatchSessionManager.shared.sendWorkout(payload)
+            } else {
+                // Caminho standalone: grava direto no Supabase ou enfileira
+                await saveStandalone(payload: payload)
             }
 
             state = .ended
+        }
+    }
+
+    // MARK: - Standalone save
+
+    private func saveStandalone(payload: WorkoutPayload) async {
+        // Monta o dicionário no formato da tabela corridas
+        var dict: [String: Any] = [
+            "distancia_km":              payload.distanceKm,
+            "duracao_seg":               Int(payload.elapsedTime),
+            "pace_medio":                payload.averagePace,
+            "pace_melhor":               payload.bestPace,
+            "velocidade_media":          payload.currentSpeed,
+            "step_count":                Int(payload.stepCount),
+            "cadencia":                  payload.cadence,
+            "stride_length":             payload.strideLength,
+            "running_power":             payload.runningPower,
+            "ground_contact_time":       payload.groundContactTime,
+            "vertical_oscillation":      payload.verticalOscillation,
+            "vertical_ratio":            payload.verticalRatio,
+            "physical_effort":           payload.physicalEffort,
+            "frequencia_cardiaca_media": payload.averageHeartRate,
+            "frequencia_cardiaca_min":   payload.minHeartRate,
+            "frequencia_cardiaca_max":   payload.maxHeartRate,
+            "hrv_sdnn":                  payload.heartRateVariability,
+            "fc_repouso":                payload.restingHeartRate,
+            "vo2_estimado":              payload.vo2Max,
+            "spo2":                      payload.oxygenSaturation,
+            "frequencia_respiratoria":   payload.respiratoryRate,
+            "tempo_zona1":               payload.timeInZone.count > 1 ? payload.timeInZone[1] : 0,
+            "tempo_zona2":               payload.timeInZone.count > 2 ? payload.timeInZone[2] : 0,
+            "tempo_zona3":               payload.timeInZone.count > 3 ? payload.timeInZone[3] : 0,
+            "tempo_zona4":               payload.timeInZone.count > 4 ? payload.timeInZone[4] : 0,
+            "tempo_zona5":               payload.timeInZone.count > 5 ? payload.timeInZone[5] : 0,
+            "calorias_ativas":           payload.activeEnergyBurned,
+            "calorias_basais":           payload.basalEnergyBurned,
+            "calorias_total":            payload.activeEnergyBurned + payload.basalEnergyBurned,
+            "ganho_elevacao":            payload.elevationGain,
+            "perda_elevacao":            payload.elevationLoss,
+            "altitude_max":              payload.maxAltitude,
+            "altitude_min":              payload.minAltitude,
+            "splits":                    payload.splits.map {
+                                            ["km": $0.km, "duracao": $0.duration,
+                                             "pace": $0.pace, "fc_media": $0.avgHeartRate,
+                                             "ganho_elevacao": $0.elevationGain]
+                                         },
+            "data_inicio":               ISO8601DateFormatter().string(from: payload.startDate),
+            "data_fim":                  ISO8601DateFormatter().string(from: payload.endDate),
+            "source":                    "apple_watch_standalone"
+        ]
+
+        if NetworkMonitor.shared.isConnected && SupabaseConfig.isConfigured {
+            do {
+                try await SupabaseClient.shared.insertCorrida(dict)
+            } catch {
+                // Rede falhou durante tentativa — enfileira
+                await OfflineQueue.shared.enqueue(dict)
+            }
+        } else {
+            // Sem rede — enfileira para sync posterior
+            await OfflineQueue.shared.enqueue(dict)
         }
     }
 

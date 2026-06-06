@@ -234,13 +234,45 @@ Durante a corrida:
 
 ---
 
-## Fase 5 — Modo standalone (opcional)
+## Fase 5 — Modo standalone
 
-| Item | Status |
-|------|--------|
-| GPS sem iPhone por perto | ⏳ planejado |
-| Sync direto com Supabase via URLSession Swift | ⏳ planejado |
-| Fila offline + sync posterior | ⏳ planejado |
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `SupabaseClient.swift` — `URLSession` nativo Swift, `insertCorrida`, `fetchActivePlan`, refresh de token | ✅ | `Networking/SupabaseClient.swift` |
+| `OfflineQueue.swift` — fila persistida no App Group, retry com backoff, max 5 tentativas | ✅ | `Networking/OfflineQueue.swift` |
+| `AnyCodable` — wrapper Codable para `[String: Any]` | ✅ | `OfflineQueue.swift` |
+| `NetworkMonitor.swift` — `NWPathMonitor`, detecta WiFi/Celular, dispara sync automático | ✅ | `Networking/NetworkMonitor.swift` |
+| `WorkoutManager.endWorkout()` — decide caminho: iPhone acessível → WC, standalone → Supabase/fila | ✅ | `WorkoutManager.swift` |
+| `saveStandalone()` — monta dict completo da tabela `corridas` e grava ou enfileira | ✅ | `WorkoutManager.swift` |
+| `StandaloneStatusView.swift` — status de rede, credenciais, fila pendente, botão sync | ✅ | `Views/StandaloneStatusView.swift` |
+| `WatchSessionManager` recebe credenciais Supabase via `applicationContext` | ✅ | `WatchSessionManager.swift` |
+| `CredentialSyncToWatch.swift` (iOS) — envia tokens via App Group + WC após login | ✅ | `apple/CredentialSyncToWatch.swift` |
+| `TempoRunWatchApp` inicializa `NetworkMonitor` e `OfflineQueue` | ✅ | `TempoRunWatchApp.swift` |
+| `ContentView` — 4ª aba "Status" com `StandaloneStatusView` | ✅ | `ContentView.swift` |
+
+### Fluxo completo da Fase 5
+
+```
+Corrida encerrada (sem iPhone por perto)
+│
+├─ NetworkMonitor.isConnected && SupabaseConfig.isConfigured
+│   └─ SupabaseClient.insertCorrida()  ──→  Supabase (direto)
+│       └─ HTTP 401: refreshToken()    ──→  novo token → retry
+│           └─ erro persistente        ──→  OfflineQueue.enqueue()
+│
+└─ Sem rede
+    └─ OfflineQueue.enqueue()
+        └─ persiste em UserDefaults (App Group)
+        └─ NetworkMonitor detecta rede voltando
+            └─ OfflineQueue.syncAll()  ──→  Supabase
+
+Credenciais:
+iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
+               ──→ UserDefaults App Group (compartilhado)
+               ──→ WCSession.updateApplicationContext
+               ──→ Watch: WatchSessionManager.applyCredentials()
+               ──→ OfflineQueue.syncAll() (flush imediato se há fila)
+```
 
 ---
 

@@ -176,6 +176,44 @@ extension WatchSessionManager: WCSessionDelegate {
         }
     }
 
+    // Contexto enviado pelo iPhone (credenciais, plano, complicações)
+    func session(_ session: WCSession,
+                 didReceiveApplicationContext applicationContext: [String: Any]) {
+        // Credenciais Supabase (modo standalone)
+        if let creds = applicationContext[CredentialSyncToWatch.contextKey] as? [String: Any] {
+            applyCredentials(creds)
+            return
+        }
+        // Plano de treino
+        if applicationContext[TrainingPlanManager.planContextKey] != nil {
+            handlePlanContext(applicationContext)
+            return
+        }
+        // Dados de complicação
+        if let data = applicationContext[ComplicationData.contextKey] as? Data,
+           let comp = try? JSONDecoder().decode(ComplicationDataTransfer.self, from: data) {
+            applyComplicationData(comp)
+        }
+    }
+
+    private func applyCredentials(_ creds: [String: Any]) {
+        guard creds["url"] is String else {
+            // NSNull = logout — limpa credenciais
+            let defaults = UserDefaults(suiteName: SupabaseConfig.appGroupID) ?? .standard
+            ["supabaseUrl","supabaseAnonKey","supabaseAccessToken",
+             "supabaseRefreshToken","supabaseUserId"].forEach { defaults.removeObject(forKey: $0) }
+            return
+        }
+        let defaults = UserDefaults(suiteName: SupabaseConfig.appGroupID) ?? .standard
+        let map = ["url": "supabaseUrl", "anonKey": "supabaseAnonKey",
+                   "accessToken": "supabaseAccessToken", "refreshToken": "supabaseRefreshToken",
+                   "userId": "supabaseUserId"]
+        for (src, dst) in map {
+            if let val = creds[src] as? String { defaults.set(val, forKey: dst) }
+        }
+        Task { await OfflineQueue.shared.syncAll() }
+    }
+
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         // Dados de complicação com prioridade máxima
         if let data = userInfo[ComplicationData.contextKey] as? Data,

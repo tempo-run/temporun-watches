@@ -34,7 +34,6 @@ struct ContentView: View {
     private var mainContent: some View {
         switch workoutManager.state {
         case .idle:
-            // Tabs: treino do dia | semana | iniciar livre
             TabView {
                 TodayWorkoutView()
                     .tabItem { Label("Hoje", systemImage: "calendar") }
@@ -44,6 +43,9 @@ struct ContentView: View {
 
                 StartView()
                     .tabItem { Label("Livre", systemImage: "play.fill") }
+
+                StandaloneStatusView()
+                    .tabItem { Label("Status", systemImage: "antenna.radiowaves.left.and.right") }
             }
 
         case .running, .paused:
