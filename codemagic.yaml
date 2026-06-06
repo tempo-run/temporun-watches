@@ -53,11 +53,13 @@ workflows:
         script: |
           set -e
           ARCHIVE="build/ios/xcarchive/TempoRunWatch.xcarchive"
-          APP="$ARCHIVE/Products/Applications/TempoRunWatch.app"
-          if [ ! -d "$APP" ]; then
-            echo "ERRO: .app nao encontrado em $APP"
-            echo "Conteudo de Products:"
-            ls -R "$ARCHIVE/Products" || true
+          echo "=== Arvore do archive (ate 5 niveis) ==="
+          find "$ARCHIVE" -maxdepth 5 2>/dev/null | head -120 || echo "(archive inexistente)"
+          echo "=== Procurando TempoRunWatch.app em qualquer lugar ==="
+          APP="$(find "$ARCHIVE" -name 'TempoRunWatch.app' -type d 2>/dev/null | head -1)"
+          echo "App encontrado em: '$APP'"
+          if [ -z "$APP" ]; then
+            echo "ERRO: nenhum TempoRunWatch.app dentro do archive"
             exit 1
           fi
           rm -rf build/ios/ipa
