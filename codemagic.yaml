@@ -16,10 +16,11 @@ workflows:
       groups:
         - TEMPORUN-WATCH-SECRETS
       vars:
-        XCODE_SCHEME: TempoRunWatch
+        # Agora arquivamos o app iOS stub (contêiner), que embarca o watch app.
+        XCODE_SCHEME: TempoRunStub
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.temporun.run.watchkitapp
+        bundle_identifier: com.temporun.watch
 
     scripts:
       - name: Instalar XcodeGen
@@ -38,55 +39,69 @@ workflows:
         script: |
           set -e
 
-          # 1. Mapear os dois profiles instalados na máquina do Codemagic
+          # 1. Mapear os tres profiles instalados (stub iOS, watch app, widget)
           PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
           XCODE_PROFILES_HOME="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-          
+
+          STUB_PROFILE_NAME=""
           WATCH_PROFILE_NAME=""
           WIDGET_PROFILE_NAME=""
 
-          echo "Buscando profiles instalados para os dois bundles..."
+          echo "Buscando profiles instalados para os tres bundles..."
           for profile in "$PROFILES_HOME"/*.mobileprovision "$XCODE_PROFILES_HOME"/*.mobileprovision; do
             if [ -f "$profile" ]; then
               security cms -D -i "$profile" > /tmp/profile_temp.plist
               APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile_temp.plist 2>/dev/null || true)
               PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile_temp.plist 2>/dev/null || true)
-              
-              if [[ "$APP_IDENTIFIER" == *".com.temporun.run.watchkitapp" ]]; then
-                WATCH_PROFILE_NAME="$PROFILE_NAME"
-                echo "Encontrado profile do Watch App: $WATCH_PROFILE_NAME"
-              elif [[ "$APP_IDENTIFIER" == *".com.temporun.run.watchkitapp.watchkitextension" ]]; then
+              echo " - $APP_IDENTIFIER  =>  $PROFILE_NAME"
+
+              if [[ "$APP_IDENTIFIER" == *".com.temporun.watch.watchkitapp.watchkitextension" ]]; then
                 WIDGET_PROFILE_NAME="$PROFILE_NAME"
-                echo "Encontrado profile do Widget: $WIDGET_PROFILE_NAME"
+              elif [[ "$APP_IDENTIFIER" == *".com.temporun.watch.watchkitapp" ]]; then
+                WATCH_PROFILE_NAME="$PROFILE_NAME"
+              elif [[ "$APP_IDENTIFIER" == *".com.temporun.watch" ]]; then
+                STUB_PROFILE_NAME="$PROFILE_NAME"
               fi
             fi
           done
 
+          if [ -z "$STUB_PROFILE_NAME" ]; then
+            echo "ERRO: Profile do iOS Stub (com.temporun.watch) nao encontrado!"
+            exit 1
+          fi
           if [ -z "$WATCH_PROFILE_NAME" ]; then
-            echo "ERRO: Profile do Watch App não encontrado!"
+            echo "ERRO: Profile do Watch App (com.temporun.watch.watchkitapp) nao encontrado!"
             exit 1
           fi
           if [ -z "$WIDGET_PROFILE_NAME" ]; then
-            echo "ERRO: Profile do Widget Extension não encontrado!"
+            echo "ERRO: Profile do Widget (com.temporun.watch.watchkitapp.watchkitextension) nao encontrado!"
             exit 1
           fi
+          echo "Stub:   $STUB_PROFILE_NAME"
+          echo "Watch:  $WATCH_PROFILE_NAME"
+          echo "Widget: $WIDGET_PROFILE_NAME"
 
-          # Exportar variáveis para o script Ruby
-          export WATCH_PROFILE_NAME
-          export WIDGET_PROFILE_NAME
+          export STUB_PROFILE_NAME WATCH_PROFILE_NAME WIDGET_PROFILE_NAME
 
-          # 2. Injetar perfis correspondentes especificamente a cada target no pbxproj
+          # 2. Injetar perfis especificos por bundle id no pbxproj
           ruby -e '
             project_file = File.join("TempoRunWatch.xcodeproj", "project.pbxproj")
+            stub_profile = ENV.fetch("STUB_PROFILE_NAME")
             watch_profile = ENV.fetch("WATCH_PROFILE_NAME")
             widget_profile = ENV.fetch("WIDGET_PROFILE_NAME")
             team_id = "N48XV6SR5A"
-            
+
+            profiles = {
+              "com.temporun.watch" => stub_profile,
+              "com.temporun.watch.watchkitapp" => watch_profile,
+              "com.temporun.watch.watchkitapp.watchkitextension" => widget_profile,
+            }
+
             lines = File.readlines(project_file)
             new_lines = []
             in_build_configuration = false
             config_block = []
-            
+
             lines.each do |line|
               if line =~ /buildSettings = \{/
                 in_build_configuration = true
@@ -96,23 +111,20 @@ workflows:
                 if line =~ /\};/
                   in_build_configuration = false
                   block_text = config_block.join
-                  
+
                   if block_text =~ /PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);/
                     bundle_id = $1.strip.gsub(/[^a-zA-Z0-9.-]/, "")
-                    
+                    profile = profiles[bundle_id]
+
                     block_text.gsub!(/CODE_SIGN_STYLE = [^;]+;/, "CODE_SIGN_STYLE = Manual;")
                     block_text.gsub!(/DEVELOPMENT_TEAM = [^;]+;/, "DEVELOPMENT_TEAM = #{team_id};")
                     block_text.gsub!(/CODE_SIGN_IDENTITY = [^;]+;/, "CODE_SIGN_IDENTITY = \"Apple Distribution\";")
-                    
-                    if bundle_id == "com.temporun.run.watchkitapp"
-                      block_text.gsub!(/PROVISIONING_PROFILE_SPECIFIER = [^;]+;/, "PROVISIONING_PROFILE_SPECIFIER = \"#{watch_profile}\";")
-                      unless block_text.include?("PROVISIONING_PROFILE_SPECIFIER")
-                        block_text.gsub!(/(PRODUCT_BUNDLE_IDENTIFIER = [^;]+;\n)/, "\\1\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{watch_profile}\";\n")
-                      end
-                    elsif bundle_id == "com.temporun.run.watchkitapp.watchkitextension"
-                      block_text.gsub!(/PROVISIONING_PROFILE_SPECIFIER = [^;]+;/, "PROVISIONING_PROFILE_SPECIFIER = \"#{widget_profile}\";")
-                      unless block_text.include?("PROVISIONING_PROFILE_SPECIFIER")
-                        block_text.gsub!(/(PRODUCT_BUNDLE_IDENTIFIER = [^;]+;\n)/, "\\1\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{widget_profile}\";\n")
+
+                    if profile
+                      if block_text.include?("PROVISIONING_PROFILE_SPECIFIER")
+                        block_text.gsub!(/PROVISIONING_PROFILE_SPECIFIER = [^;]+;/, "PROVISIONING_PROFILE_SPECIFIER = \"#{profile}\";")
+                      else
+                        block_text.gsub!(/(PRODUCT_BUNDLE_IDENTIFIER = [^;]+;\n)/, "\\1\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{profile}\";\n")
                       end
                     end
                   end
@@ -125,7 +137,7 @@ workflows:
             File.write(project_file, new_lines.join)
           '
 
-          # 3. Gerar o ExportOptions.plist com os dois perfis mapeados
+          # 3. Gerar o ExportOptions.plist com os tres perfis mapeados
           EXPORT_OPTIONS_PLIST="/tmp/temporun-watch-export-options.plist"
           cat > "$EXPORT_OPTIONS_PLIST" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -140,9 +152,11 @@ workflows:
             <string>N48XV6SR5A</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>com.temporun.run.watchkitapp</key>
+              <key>com.temporun.watch</key>
+              <string>${STUB_PROFILE_NAME}</string>
+              <key>com.temporun.watch.watchkitapp</key>
               <string>${WATCH_PROFILE_NAME}</string>
-              <key>com.temporun.run.watchkitapp.watchkitextension</key>
+              <key>com.temporun.watch.watchkitapp.watchkitextension</key>
               <string>${WIDGET_PROFILE_NAME}</string>
             </dict>
             <key>stripSwiftSymbols</key>
@@ -153,43 +167,31 @@ workflows:
           </plist>
           PLIST
 
-          # 4. Arquivar para watchOS
-          echo "Arquivando app watchOS..."
+          # 4. Arquivar o app iOS (que embarca o watch app + widget)
+          echo "Arquivando app iOS (contendo o watch app)..."
           xcodebuild \
             -project TempoRunWatch.xcodeproj \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
-            -sdk watchos \
-            -destination "generic/platform=watchOS" \
-            -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
+            -destination "generic/platform=iOS" \
+            -archivePath build/ios/xcarchive/TempoRunStub.xcarchive \
             archive \
             COMPILER_INDEX_STORE_ENABLE=NO \
             DEVELOPMENT_TEAM=N48XV6SR5A \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution"
 
-          # 5. Empacotar o IPA manualmente.
-          #    O xcodebuild -exportArchive falha nesta imagem do Codemagic
-          #    porque o IDEDistributionMethodManager nao carrega os metodos
-          #    de distribuicao ("Unknown Distribution Error") e cai num
-          #    conjunto reduzido que exclui App Store. Como o .app ja sai
-          #    totalmente assinado (Apple Distribution + provisioning profile)
-          #    do passo de archive, montamos o IPA manualmente (Payload/).
-          echo "Empacotando IPA manualmente a partir do .xcarchive..."
-          APP_PATH="build/ios/xcarchive/TempoRunWatch.xcarchive/Products/Applications/TempoRunWatch.app"
-          if [ ! -d "$APP_PATH" ]; then
-            echo "ERRO: .app assinado nao encontrado em $APP_PATH"
-            exit 1
-          fi
+          # 5. Exportar o IPA para App Store. Como o produto primario do archive
+          #    agora e um app iOS normal, o exportArchive reconhece o metodo
+          #    app-store-connect e embrulha o watch app corretamente.
+          echo "Exportando IPA para TestFlight..."
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/ios/xcarchive/TempoRunStub.xcarchive \
+            -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
+            -exportPath build/ios/ipa
 
-          rm -rf build/ios/ipa build/ios/Payload
-          mkdir -p build/ios/ipa build/ios/Payload
-          cp -R "$APP_PATH" build/ios/Payload/
-
-          ( cd build/ios && zip -r -y -q ipa/TempoRunWatch.ipa Payload )
-          rm -rf build/ios/Payload
-
-          echo "=== IPA gerado ==="
+          echo "=== IPA exportado ==="
           ls -la build/ios/ipa
 
     artifacts:
