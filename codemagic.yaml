@@ -54,25 +54,42 @@ workflows:
             -destination "generic/platform=watchOS" -showBuildSettings 2>/dev/null \
             | grep -E " SKIP_INSTALL| INSTALL_PATH| WRAPPER_NAME| PRODUCT_TYPE" | sort -u || true
 
-      - name: Empacotar IPA (manual, sem exportArchive)
+      - name: Export IPA
         working_directory: apple
         script: |
           set -e
-          ARCHIVE="build/ios/xcarchive/TempoRunWatch.xcarchive"
-          echo "=== Arvore do archive (ate 5 niveis) ==="
-          find "$ARCHIVE" -maxdepth 5 2>/dev/null | head -120 || echo "(archive inexistente)"
-          echo "=== Procurando TempoRunWatch.app em qualquer lugar ==="
-          APP="$(find "$ARCHIVE" -name 'TempoRunWatch.app' -type d 2>/dev/null | head -1)"
-          echo "App encontrado em: '$APP'"
-          if [ -z "$APP" ]; then
-            echo "ERRO: nenhum TempoRunWatch.app dentro do archive"
-            exit 1
-          fi
-          rm -rf build/ios/ipa
-          mkdir -p build/ios/ipa/Payload
-          cp -R "$APP" build/ios/ipa/Payload/
-          (cd build/ios/ipa && zip -qry TempoRunWatch.ipa Payload && rm -rf Payload)
-          echo "IPA gerado:"
+          cat > /tmp/export_options.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>destination</key>
+              <string>export</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.temporun.run.watchkitapp</key>
+                  <string>TempoRun Watch Distribution</string>
+                  <key>com.temporun.run.watchkitapp.watchkitextension</key>
+                  <string>TempoRun Watch Extension Distribution</string>
+              </dict>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>uploadSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist /tmp/export_options.plist \
+            COMPILER_INDEX_STORE_ENABLE=NO
+          echo "=== IPA exportado ==="
           ls -la build/ios/ipa
 
     artifacts:
