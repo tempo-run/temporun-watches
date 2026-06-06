@@ -1,0 +1,47 @@
+workflows:
+  temporun-watch-ios:
+    name: TempoRun Watch — Build & TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      xcode: latest
+      groups:
+        - TEMPORUN-WATCH-SECRETS
+      vars:
+        XCODE_SCHEME: TempoRunWatch
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.temporun.run.watchkitapp
+
+    scripts:
+      - name: Instalar XcodeGen
+        script: brew install xcodegen
+
+      - name: Gerar projeto Xcode
+        working_directory: apple
+        script: xcodegen generate
+
+      - name: Aplicar profiles no projeto
+        working_directory: apple
+        script: xcode-project use-profiles
+
+      - name: Build & export IPA
+        working_directory: apple
+        script: |
+          xcode-project build-ipa \
+            --project TempoRunWatch.xcodeproj \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags="-destination 'generic/platform=watchOS'"
+
+    artifacts:
+      - apple/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - apple/**/*.dSYM.zip
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
