@@ -23,8 +23,12 @@ workflows:
 
           # Instala o certificado .p12 salvo no Codemagic
           echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --certificate /tmp/certificate.p12 \
-            --certificate-password $CM_CERTIFICATE_PASSWORD
+          if [ -n "$CM_CERTIFICATE_PASSWORD" ]; then
+            keychain add-certificates --certificate /tmp/certificate.p12 \
+              --certificate-password $CM_CERTIFICATE_PASSWORD
+          else
+            keychain add-certificates --certificate /tmp/certificate.p12
+          fi
 
           # Busca e instala os provisioning profiles do portal Apple
           app-store-connect fetch-signing-files $BUNDLE_ID \
