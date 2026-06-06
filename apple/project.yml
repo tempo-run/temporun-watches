@@ -7,7 +7,8 @@ options:
 
 settings:
   base:
-    DEVELOPMENT_TEAM: "" # preencher com o Team ID da Apple Developer
+    DEVELOPMENT_TEAM: N48XV6SR5A
+    CODE_SIGN_STYLE: Manual
 
 targets:
 
@@ -31,6 +32,8 @@ targets:
         INFOPLIST_FILE: TempoRunWatch/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.temporun.run.watchkitapp
         SWIFT_VERSION: "5.9"
+        PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Distribution
+        CODE_SIGN_IDENTITY: "Apple Distribution"
     sources:
       - path: TempoRunWatch/Sources/TempoRunWatch
         excludes:
@@ -58,6 +61,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.temporun.run.watchkitapp.widget
         SWIFT_VERSION: "5.9"
+        PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Extension Distribution
+        CODE_SIGN_IDENTITY: "Apple Distribution"
     sources:
       - path: TempoRunWatch/Sources/TempoRunWatch/Complications/WidgetBundle.swift
       - path: TempoRunWatch/Sources/TempoRunWatch/Complications/ComplicationProvider.swift
