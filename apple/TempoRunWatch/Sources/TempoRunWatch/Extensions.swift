@@ -4,6 +4,14 @@ extension Color {
     static let tempoOrange = Color(red: 1.0, green: 0.42, blue: 0.21) // #FF6B35
 }
 
+extension String.StringInterpolation {
+    /// Formata um Double usando o especificador printf informado em `default`.
+    /// Ex.: "\(value, default: "%.0f")"
+    mutating func appendInterpolation(_ value: Double, default spec: String) {
+        appendLiteral(String(format: spec, value))
+    }
+}
+
 extension TimeInterval {
     var formattedDuration: String {
         let h = Int(self) / 3600
