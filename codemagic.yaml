@@ -98,7 +98,7 @@ workflows:
                   block_text = config_block.join
                   
                   if block_text =~ /PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);/
-                    bundle_id = $1.strip.gsub(/['\"'\''\\]/, "")
+                    bundle_id = $1.strip.gsub(/[^a-zA-Z0-9.-]/, "")
                     
                     block_text.gsub!(/CODE_SIGN_STYLE = [^;]+;/, "CODE_SIGN_STYLE = Manual;")
                     block_text.gsub!(/DEVELOPMENT_TEAM = [^;]+;/, "DEVELOPMENT_TEAM = #{team_id};")
