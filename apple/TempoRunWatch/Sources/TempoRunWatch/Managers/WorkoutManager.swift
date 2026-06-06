@@ -348,7 +348,7 @@ class WorkoutManager: NSObject, ObservableObject {
 
     private func saveStandalone(payload: WorkoutPayload) async {
         // Monta o dicionário no formato da tabela corridas
-        var dict: [String: Any] = [
+        let dict: [String: Any] = [
             "distancia_km":              payload.distanceKm,
             "duracao_seg":               Int(payload.elapsedTime),
             "pace_medio":                payload.averagePace,
@@ -397,7 +397,7 @@ class WorkoutManager: NSObject, ObservableObject {
                 let result = try await SupabaseClient.shared.insertCorrida(dict)
                 saveResult = result
             } catch {
-                await OfflineQueue.shared.enqueue(dict)
+                OfflineQueue.shared.enqueue(dict)
             }
         } else {
             await OfflineQueue.shared.enqueue(dict)
