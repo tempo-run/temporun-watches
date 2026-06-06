@@ -36,6 +36,7 @@ targets:
         SWIFT_VERSION: "5.9"
         PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Distribution
         CODE_SIGN_IDENTITY: "Apple Distribution"
+        SKIP_INSTALL: NO
     sources:
       - path: TempoRunWatch/Sources/TempoRunWatch
         excludes:

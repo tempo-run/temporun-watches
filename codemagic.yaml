@@ -47,6 +47,12 @@ workflows:
             DEVELOPMENT_TEAM=N48XV6SR5A \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             CODE_SIGN_STYLE=Manual
+          echo "=== Products/Applications apos archive ==="
+          ls -la build/ios/xcarchive/TempoRunWatch.xcarchive/Products/Applications/ 2>&1 || echo "(vazio/inexistente)"
+          echo "=== SKIP_INSTALL / INSTALL_PATH / WRAPPER ==="
+          xcodebuild -project TempoRunWatch.xcodeproj -scheme "$XCODE_SCHEME" \
+            -destination "generic/platform=watchOS" -showBuildSettings 2>/dev/null \
+            | grep -E " SKIP_INSTALL| INSTALL_PATH| WRAPPER_NAME| PRODUCT_TYPE" | sort -u || true
 
       - name: Empacotar IPA (manual, sem exportArchive)
         working_directory: apple
