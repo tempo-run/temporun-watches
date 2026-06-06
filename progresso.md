@@ -276,6 +276,15 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 
 ---
 
+## Backend — Pendente (médio prazo)
+
+| Item | Status | Descrição |
+|------|--------|-----------|
+| Edge function `watch-sync-plan` | ⏳ planejado | Formata e entrega o plano ativo pro Watch em standalone mode (hoje usa REST direto com linha crua) |
+| Edge function `complication-data` | ⏳ planejado | Agrega km semanais, streak, XP e próximo treino para complications no standalone mode |
+
+---
+
 ## Samsung / Wear OS
 
 | Item | Status |
