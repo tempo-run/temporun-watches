@@ -14,11 +14,11 @@ struct SummaryView: View {
                     // Lightning icon
                     ZStack {
                         Circle()
-                            .fill(Color.tempoOrange.opacity(0.25))
+                            .fill(Color.tempoPurple)
                             .frame(width: 44, height: 44)
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.tempoOrange)
+                            .foregroundColor(.white)
                     }
 
                     Text("RUN COMPLETE")
@@ -46,23 +46,20 @@ struct SummaryView: View {
                         value: String(format: "%.1f", m.distanceKm),
                         label: "KM"
                     )
-                    Divider().background(Color.white.opacity(0.1)).frame(height: 36)
+                    Divider().background(Color.white.opacity(0.25)).frame(height: 36)
+                    SummaryStatCell(
+                        value: workoutManager.elapsedTime.formattedDuration,
+                        label: "TEMPO"
+                    )
+                    Divider().background(Color.white.opacity(0.25)).frame(height: 36)
                     SummaryStatCell(
                         value: m.averagePace.formattedPace,
                         label: "PACE"
                     )
-                    if let result {
-                        Divider().background(Color.white.opacity(0.1)).frame(height: 36)
-                        SummaryStatCell(
-                            value: "+\(result.xp_ganho)",
-                            label: "XP",
-                            color: .tempoOrange
-                        )
-                    }
                 }
-                .padding(.vertical, 6)
-                .background(Color.tempoCard)
-                .cornerRadius(12)
+                .padding(.vertical, 8)
+                .background(LinearGradient.tempoGradient)
+                .cornerRadius(14)
 
                 // ── Streak pill ────────────────────────────────────────────
                 if let result {
@@ -86,7 +83,6 @@ struct SummaryView: View {
 
                 // ── Detailed metrics ───────────────────────────────────────
                 group("Corrida") {
-                    SRow(icon: "clock",       label: "Tempo",       value: workoutManager.elapsedTime.formattedDuration)
                     SRow(icon: "speedometer", label: "Pace médio",  value: m.averagePace.formattedPace + "/km")
                     SRow(icon: "speedometer", label: "Melhor pace", value: m.bestPace.formattedPace + "/km", color: .tempoCyan)
                 }

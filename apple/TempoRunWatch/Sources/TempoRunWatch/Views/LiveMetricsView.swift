@@ -87,10 +87,10 @@ private struct PrimaryPage: View {
 
             // 2×2 metric grid
             HStack(spacing: 6) {
-                LiveCell(value: wm.metrics.currentPace.formattedPace, label: "PACE ATUAL")
+                LiveCell(value: wm.metrics.currentPace.formattedPace, label: "PACE ATUAL",
+                         color: .tempoPurple)
                 Divider().background(Color.white.opacity(0.1)).frame(height: 32)
-                LiveCell(value: "\(wm.metrics.heartRate, default: "%.0f")", label: "BPM",
-                         color: zoneColor(wm.metrics.currentZone))
+                LiveCell(value: "\(wm.metrics.heartRate, default: "%.0f")", label: "BPM")
             }
             .padding(.vertical, 4)
             .background(Color.tempoCard)
@@ -98,12 +98,10 @@ private struct PrimaryPage: View {
             .padding(.horizontal, 6)
 
             HStack(spacing: 6) {
-                LiveCell(value: "\(wm.metrics.cadence, default: "%.0f")", label: "CADÊNCIA",
-                         color: .tempoPurple)
+                LiveCell(value: "\(wm.metrics.cadence, default: "%.0f")", label: "CADÊNCIA")
                 Divider().background(Color.white.opacity(0.1)).frame(height: 32)
                 LiveCell(value: wm.metrics.currentZone > 0 ? "Z\(wm.metrics.currentZone)" : "--",
-                         label: "ZONA",
-                         color: zoneColor(wm.metrics.currentZone))
+                         label: "ZONA")
             }
             .padding(.vertical, 4)
             .background(Color.tempoCard)

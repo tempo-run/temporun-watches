@@ -82,11 +82,12 @@
   .row .rs{font-size:8px;color:#8a8a8a}
 
   /* Resumo */
-  .hero-ic{width:42px;height:42px;border-radius:50%;background:rgba(255,107,53,.25);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:20px}
+  .hero-ic{width:42px;height:42px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:20px}
   .statrow{display:flex;background:var(--card);border-radius:12px;padding:7px 0;margin-top:8px}
+  .statrow.grad{background:var(--grad);padding:9px 0;border-radius:14px}
   .statrow .s{flex:1;text-align:center}
   .statrow .sv{font-size:17px;font-weight:800}
-  .statrow .sl{font-size:7px;font-weight:600;color:#8a8a8a;letter-spacing:.5px;margin-top:2px}
+  .statrow .sl{font-size:7px;font-weight:600;color:rgba(255,255,255,.7);letter-spacing:.5px;margin-top:2px}
   .secrow{display:flex;justify-content:space-between;font-size:10px;margin-top:5px}
   .secrow .k{color:#8a8a8a}
   .sectitle{font-size:9px;font-weight:600;color:var(--cyan);margin-top:8px}
@@ -177,14 +178,14 @@
           <div class="bignum">7.24</div>
           <div class="kmlabel">KM</div>
           <div class="grid2">
-            <div class="cell"><div class="v">5:52</div><div class="l">PACE ATUAL</div></div>
+            <div class="cell"><div class="v" style="color:var(--purple)">5:52</div><div class="l">PACE ATUAL</div></div>
             <div class="vsep"></div>
-            <div class="cell"><div class="v" style="color:#34d399">148</div><div class="l">BPM</div></div>
+            <div class="cell"><div class="v">148</div><div class="l">BPM</div></div>
           </div>
           <div class="grid2">
-            <div class="cell"><div class="v" style="color:var(--purple)">172</div><div class="l">CADÊNCIA</div></div>
+            <div class="cell"><div class="v">172</div><div class="l">CADÊNCIA</div></div>
             <div class="vsep"></div>
-            <div class="cell"><div class="v" style="color:#34d399">Z2</div><div class="l">ZONA</div></div>
+            <div class="cell"><div class="v">Z2</div><div class="l">ZONA</div></div>
           </div>
           <div style="text-align:center;margin-top:7px"><span class="pill cyan">Dentro do alvo</span></div>
         </div>
@@ -200,10 +201,10 @@
           <div class="eyebrow" style="text-align:center;margin-top:5px">RUN COMPLETE</div>
           <div class="title" style="text-align:center">Boa corrida!</div>
           <div class="desc" style="text-align:center">Você manteve consistência e fechou dentro da zona.</div>
-          <div class="statrow">
+          <div class="statrow grad">
             <div class="s"><div class="sv">11.0</div><div class="sl">KM</div></div>
+            <div class="s"><div class="sv">42:18</div><div class="sl">TEMPO</div></div>
             <div class="s"><div class="sv">6:42</div><div class="sl">PACE</div></div>
-            <div class="s"><div class="sv" style="color:#ff6b35">+78</div><div class="sl">XP</div></div>
           </div>
           <div style="text-align:center;margin-top:8px"><span class="pill cyan">Streak 4 dias</span></div>
           <div class="sectitle">Cardio</div>
