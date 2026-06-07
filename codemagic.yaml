@@ -12,7 +12,7 @@ workflows:
           include: true
 
     environment:
-      xcode: "latest"
+      xcode: "16"
       groups:
         - TEMPORUN-WATCH-SECRETS
       vars:
@@ -34,7 +34,7 @@ workflows:
         working_directory: apple
         script: xcode-project use-profiles
 
-      - name: Build IPA (archive + export)
+      - name: Build IPA (archive + empacotar)
         working_directory: apple
         script: |
           set -e
@@ -137,37 +137,7 @@ workflows:
             File.write(project_file, new_lines.join)
           '
 
-          # 3. Gerar o ExportOptions.plist com os tres perfis mapeados
-          EXPORT_OPTIONS_PLIST="/tmp/temporun-watch-export-options.plist"
-          cat > "$EXPORT_OPTIONS_PLIST" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>teamID</key>
-            <string>N48XV6SR5A</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.temporun.watch</key>
-              <string>${STUB_PROFILE_NAME}</string>
-              <key>com.temporun.watch.watchkitapp</key>
-              <string>${WATCH_PROFILE_NAME}</string>
-              <key>com.temporun.watch.watchkitapp.watchkitextension</key>
-              <string>${WIDGET_PROFILE_NAME}</string>
-            </dict>
-            <key>stripSwiftSymbols</key>
-            <true/>
-            <key>uploadSymbols</key>
-            <true/>
-          </dict>
-          </plist>
-          PLIST
-
-          # 4. Arquivar o app iOS (que embarca o watch app + widget)
+          # 3. Arquivar o app iOS (que embarca o watch app + widget)
           echo "Arquivando app iOS (contendo o watch app)..."
           xcodebuild \
             -project TempoRunWatch.xcodeproj \
@@ -181,18 +151,40 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution"
 
-          # 5. Exportar o IPA para App Store. Como o produto primario do archive
-          #    agora e um app iOS normal, o exportArchive reconhece o metodo
-          #    app-store-connect e embrulha o watch app corretamente.
-          echo "Exportando IPA para TestFlight..."
-          xcodebuild \
-            -exportArchive \
-            -archivePath build/ios/xcarchive/TempoRunStub.xcarchive \
-            -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
-            -exportPath build/ios/ipa
+          # 4. Empacotar o IPA manualmente a partir do .xcarchive.
+          #    O `xcodebuild -exportArchive` falha na imagem do Codemagic com
+          #    "IDEDistributionMethodManager: Unknown Distribution Error" — o
+          #    framework de distribuicao do Xcode nao carrega nenhum metodo
+          #    ({} vazio), entao recusa app-store / app-store-connect.
+          #    Como o archive ja foi assinado com "Apple Distribution" + os
+          #    profiles de distribuicao, montamos o IPA no formato canonico
+          #    Payload/ (sem re-assinar) e o publishing faz o upload via API key.
+          #    Deploy targets iOS 17 / watchOS 10 tem Swift na propria OS, logo
+          #    nao e preciso pasta SwiftSupport.
+          echo "Empacotando IPA manualmente a partir do archive..."
+          ARCHIVE_APPS="build/ios/xcarchive/TempoRunStub.xcarchive/Products/Applications"
+          APP_PATH=$(ls -d "$ARCHIVE_APPS"/*.app 2>/dev/null | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERRO: nenhum .app encontrado em $ARCHIVE_APPS"
+            ls -la "$ARCHIVE_APPS" || true
+            exit 1
+          fi
+          echo "App principal: $APP_PATH"
+          echo "Conteudo embarcado:"
+          ls -la "$APP_PATH/Watch" 2>/dev/null || echo " (sem pasta Watch?)"
 
-          echo "=== IPA exportado ==="
+          rm -rf build/ios/ipa
+          mkdir -p build/ios/ipa/Payload
+          cp -R "$APP_PATH" build/ios/ipa/Payload/
+
+          ( cd build/ios/ipa && zip -qry TempoRunStub.ipa Payload && rm -rf Payload )
+
+          echo "=== IPA empacotado ==="
           ls -la build/ios/ipa
+
+          # Verifica a assinatura do app dentro do IPA (diagnostico)
+          echo "Verificando assinatura..."
+          codesign -dv --verbose=2 "$APP_PATH" 2>&1 | head -n 20 || true
 
     artifacts:
       - apple/build/ios/ipa/*.ipa
