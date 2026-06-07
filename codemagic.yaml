@@ -30,6 +30,30 @@ workflows:
         working_directory: apple
         script: xcodegen generate
 
+      - name: Definir build number (CFBundleVersion)
+        working_directory: apple
+        script: |
+          set -e
+          # A versao precisa ser maior que qualquer build ja enviado ao ASC.
+          # Usa o BUILD_NUMBER do Codemagic (auto-incrementa); se vazio ou
+          # invalido, cai para o epoch Unix (sempre crescente e < 2^32).
+          BUILD_NUM="${BUILD_NUMBER:-}"
+          case "$BUILD_NUM" in
+            ''|*[!0-9]*) BUILD_NUM=$(date +%s) ;;
+            *) [ "$BUILD_NUM" -lt 2 ] && BUILD_NUM=$(date +%s) || true ;;
+          esac
+          echo "CFBundleVersion = $BUILD_NUM"
+
+          for plist in Stub/Info.plist TempoRunWatch/Info.plist TempoRunWatch/WidgetExtension-Info.plist; do
+            if [ -f "$plist" ]; then
+              /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" "$plist" \
+                || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $BUILD_NUM" "$plist"
+              echo " - $plist => $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
+            else
+              echo "AVISO: $plist nao encontrado (xcodegen ainda nao gerou?)"
+            fi
+          done
+
       - name: Aplicar profiles no projeto
         working_directory: apple
         script: xcode-project use-profiles
