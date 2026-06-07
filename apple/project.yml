@@ -1,122 +1,171 @@
 name: TempoRunWatch
+
 options:
-  bundleIdPrefix: com.temporun
-  deploymentTarget:
-    iOS: "17.0"
-    watchOS: "10.0"
-  xcodeVersion: "latest"
+bundleIdPrefix: com.temporun
+deploymentTarget:
+iOS: "17.0"
+watchOS: "10.0"
+xcodeVersion: "latest"
 
 settings:
-  base:
-    DEVELOPMENT_TEAM: N48XV6SR5A
-    CODE_SIGN_STYLE: Manual
+base:
+DEVELOPMENT_TEAM: N48XV6SR5A
+CODE_SIGN_STYLE: Manual
 
 targets:
 
-  # ── iOS App Stub ───────────────────────────────────────────────────────────
-  # Contêiner iOS mínimo. A App Store exige que um app watchOS standalone seja
-  # distribuído embrulhado num app iOS. Este alvo embarca o watch app.
-  TempoRunStub:
-    type: application
-    platform: iOS
-    deploymentTarget: "17.0"
-    bundleId: com.temporun.watch
-    info:
-      path: Stub/Info.plist
-      properties:
-        CFBundleDisplayName: TempoRun Watch
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
-        CFBundleIconName: AppIcon
-        UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationPortraitUpsideDown
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
-        UILaunchScreen: {}
-        UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: false
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch
-        SWIFT_VERSION: "5.9"
-        TARGETED_DEVICE_FAMILY: "1,2"
-        PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Stub Distribution
-        CODE_SIGN_IDENTITY: "Apple Distribution"
-        SKIP_INSTALL: NO
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    sources:
-      - path: Stub
-        excludes:
-          - Info.plist
-    dependencies:
-      - target: TempoRunWatch
-        embed: true
+# ── iOS App Stub ───────────────────────────────────────────────────────────
 
-  # ── App principal watchOS ──────────────────────────────────────────────────
-  TempoRunWatch:
-    type: application
-    platform: watchOS
-    deploymentTarget: "10.0"
-    bundleId: com.temporun.watch.watchkitapp
-    info:
-      path: TempoRunWatch/Info.plist
-      properties:
-        CFBundleDisplayName: TempoRun
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
-        WKCompanionAppBundleIdentifier: com.temporun.watch
-        CFBundleIconName: AppIcon
-        CFBundleIcons:
-          CFBundlePrimaryIcon:
-            CFBundleIconFiles:
-              - AppIcon
-        CFBundleIconName: AppIcon
-        WKApplication: true
-        NSHealthShareUsageDescription: "O TempoRun usa o HealthKit para salvar suas corridas e ler sua frequência cardíaca durante o treino."
-        NSHealthUpdateUsageDescription: "O TempoRun salva suas corridas e métricas de treino no Apple Health."
-       
-    entitlements:
-      path: TempoRunWatch/TempoRunWatch.entitlements
-    settings:
-      base:
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch.watchkitapp
-        SWIFT_VERSION: "5.9"
-        PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch App Distribution
-        CODE_SIGN_IDENTITY: "Apple Distribution"
-        SKIP_INSTALL: YES
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    sources:
-      - path: TempoRunWatch/Sources/TempoRunWatch
-        excludes:
-          - Complications/WidgetBundle.swift  # pertence ao widget extension
-    dependencies:
-      - target: TempoRunWatchWidget
-    capabilities:
-      healthkit: {}
+TempoRunStub:
+type: application
+platform: iOS
+deploymentTarget: "17.0"
+bundleId: com.temporun.watch
 
-  # ── Widget Extension (Smart Stack + Complicações) ─────────────────────────
-  TempoRunWatchWidget:
-    type: app-extension
-    platform: watchOS
-    deploymentTarget: "10.0"
-    bundleId: com.temporun.watch.watchkitapp.watchkitextension
-    info:
-      path: TempoRunWatch/WidgetExtension-Info.plist
-      properties:
-        CFBundleDisplayName: TempoRun Widget
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch.watchkitapp.watchkitextension
-        SWIFT_VERSION: "5.9"
-        PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Widget Distribution
-        CODE_SIGN_IDENTITY: "Apple Distribution"
-    sources:
-      - path: TempoRunWatch/Sources/TempoRunWatch/Complications/WidgetBundle.swift
-      - path: TempoRunWatch/Sources/TempoRunWatch/Complications/ComplicationProvider.swift
-      - path: TempoRunWatch/Sources/TempoRunWatch/Extensions.swift
+
+info:
+  path: Stub/Info.plist
+  properties:
+    CFBundleDisplayName: TempoRun Watch
+    CFBundleShortVersionString: "1.0"
+    CFBundleVersion: "1"
+    CFBundleIconName: AppIcon
+
+    UISupportedInterfaceOrientations:
+      - UIInterfaceOrientationPortrait
+      - UIInterfaceOrientationPortraitUpsideDown
+      - UIInterfaceOrientationLandscapeLeft
+      - UIInterfaceOrientationLandscapeRight
+
+    UILaunchScreen: {}
+
+    UIApplicationSceneManifest:
+      UIApplicationSupportsMultipleScenes: false
+
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Stub Distribution
+    CODE_SIGN_IDENTITY: "Apple Distribution"
+    SKIP_INSTALL: NO
+
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
+
+sources:
+  - path: Stub
+    excludes:
+      - Info.plist
+
+  - path: Stub/Assets.xcassets
+    type: folder.assetcatalog
+
+dependencies:
+  - target: TempoRunWatch
+    embed: true
+
+
+# ── Watch App ──────────────────────────────────────────────────────────────
+
+TempoRunWatch:
+type: application
+platform: watchOS
+deploymentTarget: "10.0"
+bundleId: com.temporun.watch.watchkitapp
+
+
+info:
+  path: TempoRunWatch/Info.plist
+  properties:
+
+    CFBundleDisplayName: TempoRun
+    CFBundleShortVersionString: "1.0"
+    CFBundleVersion: "1"
+
+    WKCompanionAppBundleIdentifier: com.temporun.watch
+
+    CFBundleIconName: AppIcon
+
+    CFBundleIcons:
+      CFBundlePrimaryIcon:
+        CFBundleIconName: AppIcon
+        CFBundleIconFiles:
+          - AppIcon
+
+    "CFBundleIcons~watch":
+      CFBundlePrimaryIcon:
+        CFBundleIconName: AppIcon
+        CFBundleIconFiles:
+          - AppIcon
+
+    WKApplication: true
+
+    NSHealthShareUsageDescription: "O TempoRun usa o HealthKit para salvar suas corridas e ler sua frequência cardíaca durante o treino."
+
+    NSHealthUpdateUsageDescription: "O TempoRun salva suas corridas e métricas de treino no Apple Health."
+
+entitlements:
+  path: TempoRunWatch/TempoRunWatch.entitlements
+
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch.watchkitapp
+    SWIFT_VERSION: "5.9"
+
+    PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch App Distribution
+    CODE_SIGN_IDENTITY: "Apple Distribution"
+
+    SKIP_INSTALL: YES
+
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+sources:
+  - path: TempoRunWatch/Sources/TempoRunWatch
+    excludes:
+      - Complications/WidgetBundle.swift
+
+  - path: TempoRunWatch/Sources/TempoRunWatch/Assets.xcassets
+    type: folder.assetcatalog
+
+dependencies:
+  - target: TempoRunWatchWidget
+
+capabilities:
+  healthkit: {}
+
+
+# ── Widget Extension ───────────────────────────────────────────────────────
+
+TempoRunWatchWidget:
+type: app-extension
+platform: watchOS
+deploymentTarget: "10.0"
+bundleId: com.temporun.watch.watchkitapp.watchkitextension
+
+```
+info:
+  path: TempoRunWatch/WidgetExtension-Info.plist
+  properties:
+    CFBundleDisplayName: TempoRun Widget
+    CFBundleShortVersionString: "1.0"
+    CFBundleVersion: "1"
+
+    NSExtension:
+      NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch.watchkitapp.watchkitextension
+    SWIFT_VERSION: "5.9"
+    PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch Widget Distribution
+    CODE_SIGN_IDENTITY: "Apple Distribution"
+
+sources:
+  - path: TempoRunWatch/Sources/TempoRunWatch/Complications/WidgetBundle.swift
+  - path: TempoRunWatch/Sources/TempoRunWatch/Complications/ComplicationProvider.swift
+  - path: TempoRunWatch/Sources/TempoRunWatch/Extensions.swift
+
