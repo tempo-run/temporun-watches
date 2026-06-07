@@ -8,9 +8,9 @@
     <string>upload</string>
     <key>provisioningProfiles</key>
     <dict>
-        <key>com.temporun.run.watchkitapp</key>
+        <key>com.temporun.watch.watchkitapp</key>
         <string>TempoRun Watch Distribution</string>
-        <key>com.temporun.run.watchkitapp.watchkitextension</key>
+        <key>com.temporun.watch.watchkitapp.watchkitextension</key>
         <string>TempoRun Watch Extension Distribution</string>
     </dict>
     <key>signingStyle</key>
