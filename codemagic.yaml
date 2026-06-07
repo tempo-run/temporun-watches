@@ -12,7 +12,10 @@ workflows:
           include: true
 
     environment:
-      xcode: "16"
+      # A Apple exige o SDK do iOS 26 (Xcode 26+) para uploads ao ASC.
+      # Antes pinavamos o 16 para fugir do exportArchive recusando app-store,
+      # mas agora empacotamos o IPA manualmente, entao o Xcode 26 e seguro.
+      xcode: latest
       groups:
         - TEMPORUN-WATCH-SECRETS
       vars:
