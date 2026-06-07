@@ -148,6 +148,10 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var lastMetrics = LiveMetrics()
     @Published var saveResult: WatchSaveResult?
 
+    // GPS / localização
+    @Published var locationStatus: CLAuthorizationStatus = .notDetermined
+    @Published var gpsAcquired: Bool = false   // true após o 1º fix preciso
+
     // Atalhos para as views
     var distanceKm: Double    { metrics.distanceKm }
     var currentPace: Double   { metrics.currentPace }
@@ -230,6 +234,7 @@ class WorkoutManager: NSObject, ObservableObject {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         locationManager.distanceFilter = 5
+        locationStatus = locationManager.authorizationStatus
     }
 
     // MARK: - Autorização
@@ -238,6 +243,15 @@ class WorkoutManager: NSObject, ObservableObject {
         guard HKHealthStore.isHealthDataAvailable() else { return }
         try? await healthStore.requestAuthorization(toShare: shareTypes, read: readTypes)
         await fetchRestingMetrics()
+    }
+
+    /// Pede autorização de localização. Chamar cedo (no launch) para o usuário
+    /// liberar o GPS antes de iniciar a corrida.
+    func requestLocationAuthorization() {
+        locationStatus = locationManager.authorizationStatus
+        if locationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        }
     }
 
     private func fetchRestingMetrics() async {
@@ -269,8 +283,11 @@ class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Controle de sessão
 
     func startWorkout() {
+        gpsAcquired = false
+        requestLocationAuthorization()
         Task {
             await requestAuthorization()
+            VoiceCoach.shared.announceStart()
             let config = HKWorkoutConfiguration()
             config.activityType = .running
             config.locationType = .outdoor
@@ -318,6 +335,7 @@ class WorkoutManager: NSObject, ObservableObject {
     func endWorkout() {
         guard let session = workoutSession, let builder = workoutBuilder else { return }
         flushZoneTime()
+        VoiceCoach.shared.announceFinish()
         session.end()
         Task {
             try? await builder.endCollection(at: Date())
@@ -412,6 +430,7 @@ class WorkoutManager: NSObject, ObservableObject {
         elapsedTime = 0; metrics = LiveMetrics()
         lastSplitKm = 0; splitStartTime = 0
         splitStartHRSum = 0; splitHRSamples = 0; splitStartElevation = 0
+        gpsAcquired = false
         state = .idle
     }
 
@@ -487,6 +506,7 @@ class WorkoutManager: NSObject, ObservableObject {
         lastSplitKm = currentKm
 
         WKInterfaceDevice.current().play(.success)
+        VoiceCoach.shared.announceKm(currentKm, paceSeconds: splitPace)
     }
 
     // MARK: - Atualização de métricas
@@ -624,11 +644,17 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 // MARK: - CLLocationManagerDelegate
 
 extension WorkoutManager: CLLocationManagerDelegate {
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in self.locationStatus = status }
+    }
+
     nonisolated func locationManager(_ manager: CLLocationManager,
                                      didUpdateLocations newLocations: [CLLocation]) {
         let filtered = newLocations.filter { $0.horizontalAccuracy < 20 }
         guard !filtered.isEmpty else { return }
         Task { @MainActor in
+            if !self.gpsAcquired { self.gpsAcquired = true }
             for loc in filtered {
                 // Altitude
                 metrics.currentAltitude = loc.altitude

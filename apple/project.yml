@@ -79,6 +79,7 @@ targets:
         WKApplication: true
         NSHealthShareUsageDescription: "O TempoRun usa o HealthKit para salvar suas corridas e ler sua frequência cardíaca durante o treino."
         NSHealthUpdateUsageDescription: "O TempoRun salva suas corridas e métricas de treino no Apple Health."
+        NSLocationWhenInUseUsageDescription: "O TempoRun usa o GPS para medir distância, ritmo e o trajeto da sua corrida."
     entitlements:
       path: TempoRunWatch/TempoRunWatch.entitlements
     settings:

@@ -58,10 +58,12 @@ private struct PrimaryPage: View {
                     .foregroundColor(.white).monospacedDigit()
                 Spacer()
                 HStack(spacing: 3) {
-                    Circle().fill(Color.tempoCyan).frame(width: 5, height: 5)
-                    Text("GPS")
+                    Circle()
+                        .fill(wm.gpsAcquired ? Color.tempoCyan : Color.orange)
+                        .frame(width: 5, height: 5)
+                    Text(wm.gpsAcquired ? "GPS" : "GPS...")
                         .font(.system(size: 10))
-                        .foregroundColor(.tempoCyan)
+                        .foregroundColor(wm.gpsAcquired ? .tempoCyan : .orange)
                 }
             }
             .padding(.horizontal, 10)

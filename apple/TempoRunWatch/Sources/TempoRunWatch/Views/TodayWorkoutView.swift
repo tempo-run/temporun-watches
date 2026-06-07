@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 // MARK: - Home (Treino de hoje)
 
@@ -45,6 +46,9 @@ private struct HomeWorkoutCard: View {
                         .foregroundColor(.white.opacity(0.55))
                         .lineLimit(2)
                 }
+
+                // Aviso de GPS
+                GPSNoticeBanner()
 
                 // Gradient workout card
                 if !workout.workoutType.isRest {
@@ -112,6 +116,59 @@ private struct HomeWorkoutCard: View {
             .padding(.horizontal, 10)
             .padding(.bottom, 12)
         }
+    }
+}
+
+// MARK: - GPS notice banner
+
+struct GPSNoticeBanner: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+
+    var body: some View {
+        switch workoutManager.locationStatus {
+        case .notDetermined:
+            banner(icon: "location.circle", color: .tempoCyan,
+                   text: "Ative o GPS para rastrear sua corrida",
+                   action: { workoutManager.requestLocationAuthorization() },
+                   actionLabel: "Ativar GPS")
+        case .denied, .restricted:
+            banner(icon: "location.slash.fill", color: .red,
+                   text: "GPS desativado. Ative em Ajustes › Privacidade › Localização",
+                   action: nil, actionLabel: nil)
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func banner(icon: String, color: Color, text: String,
+                        action: (() -> Void)?, actionLabel: String?) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 13))
+                    .foregroundColor(color)
+                Text(text)
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundColor(.white.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let action, let actionLabel {
+                Button(action: action) {
+                    Text(actionLabel)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(color.opacity(0.25))
+                        .cornerRadius(14)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(8)
+        .background(color.opacity(0.12))
+        .cornerRadius(12)
     }
 }
 
