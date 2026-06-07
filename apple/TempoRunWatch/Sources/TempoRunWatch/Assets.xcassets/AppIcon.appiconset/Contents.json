@@ -48,6 +48,12 @@
       "scale": "1x",
       "filename": "Watch-1024.png"
     }
+    {
+      "filename": "WatchIcon-1024.png",
+      "idiom": "watch-marketing",
+      "size": "1024x1024",
+      "scale": "1x"
+    }
   ],
   "info": {
     "version": 1,
