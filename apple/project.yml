@@ -67,6 +67,11 @@ targets:
         CFBundleVersion: "1"
         WKCompanionAppBundleIdentifier: com.temporun.watch
         CFBundleIconName: AppIcon
+        CFBundleIcons:
+          CFBundlePrimaryIcon:
+            CFBundleIconFiles:
+              - AppIcon
+        CFBundleIconName: AppIcon
         WKApplication: true
         NSHealthShareUsageDescription: "O TempoRun usa o HealthKit para salvar suas corridas e ler sua frequência cardíaca durante o treino."
         NSHealthUpdateUsageDescription: "O TempoRun salva suas corridas e métricas de treino no Apple Health."
