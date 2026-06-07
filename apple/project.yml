@@ -80,7 +80,7 @@ targets:
       path: TempoRunWatch/TempoRunWatch.entitlements
     settings:
       base:
-        
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch.watchkitapp
         SWIFT_VERSION: "5.9"
         PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch App Distribution
