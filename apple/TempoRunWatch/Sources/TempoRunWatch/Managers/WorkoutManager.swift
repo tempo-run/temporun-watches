@@ -145,6 +145,7 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var state: WorkoutState = .idle
     @Published var elapsedTime: TimeInterval = 0
     @Published var metrics = LiveMetrics()
+    @Published var lastMetrics = LiveMetrics()
     @Published var saveResult: WatchSaveResult?
 
     // Atalhos para as views
@@ -340,6 +341,7 @@ class WorkoutManager: NSObject, ObservableObject {
                 await saveStandalone(payload: payload)
             }
 
+            lastMetrics = metrics
             state = .ended
         }
     }

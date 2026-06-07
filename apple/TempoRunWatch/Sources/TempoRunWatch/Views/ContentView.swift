@@ -9,7 +9,6 @@ struct ContentView: View {
         ZStack {
             mainContent
 
-            // Overlay de alerta de pace (aparece durante corrida)
             if let alert = planManager.paceAlert, showPaceAlert,
                workoutManager.state == .running {
                 PaceAlertOverlay(alert: alert, visible: $showPaceAlert)
@@ -22,7 +21,6 @@ struct ContentView: View {
             }
         }
         .onChange(of: workoutManager.metrics.currentPace) { pace in
-            // Verifica alerta de pace a cada atualização de pace
             planManager.checkPaceAlert(
                 currentPaceSec: pace,
                 elapsedTime: workoutManager.elapsedTime
@@ -36,13 +34,16 @@ struct ContentView: View {
         case .idle:
             TabView {
                 TodayWorkoutView()
-                    .tabItem { Label("Hoje", systemImage: "calendar") }
+                    .tabItem { Label("Home", systemImage: "house.fill") }
 
-                WeekPlanView()
-                    .tabItem { Label("Semana", systemImage: "list.bullet") }
+                PlanoView()
+                    .tabItem { Label("Plano", systemImage: "list.bullet.clipboard.fill") }
 
-                StartView()
-                    .tabItem { Label("Livre", systemImage: "play.fill") }
+                WidgetsView()
+                    .tabItem { Label("Widgets", systemImage: "rectangle.3.group.fill") }
+
+                BiomechanicsView()
+                    .tabItem { Label("Forma", systemImage: "figure.run") }
 
                 StandaloneStatusView()
                     .tabItem { Label("Status", systemImage: "antenna.radiowaves.left.and.right") }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LiveMetricsView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
+    @EnvironmentObject var planManager: TrainingPlanManager
 
     var body: some View {
         TabView {
@@ -16,53 +17,126 @@ struct LiveMetricsView: View {
         }
         .tabViewStyle(.page)
         .environmentObject(workoutManager)
+        .environmentObject(planManager)
     }
 }
 
-// MARK: - Página 1: Primárias
+// MARK: - Página 1: Live Run (redesenhada)
 
 private struct PrimaryPage: View {
     @EnvironmentObject var wm: WorkoutManager
+    @EnvironmentObject var planManager: TrainingPlanManager
+
+    private var paceStatus: PaceStatus {
+        guard let workout = planManager.todayWorkout,
+              wm.metrics.currentPace > 0 else { return .ok }
+        return workout.isPaceOnTarget(wm.metrics.currentPace)
+    }
+
+    private var statusLabel: String {
+        switch paceStatus {
+        case .ok:      return "Dentro do alvo"
+        case .tooFast: return "Muito rápido"
+        case .tooSlow: return "Muito lento"
+        }
+    }
+
+    private var statusColor: Color {
+        switch paceStatus {
+        case .ok:      return .tempoCyan
+        case .tooFast: return .yellow
+        case .tooSlow: return .red
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 3) {
-            // Tempo
-            Text(wm.elapsedTime.formattedDuration)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .foregroundColor(.white).monospacedDigit()
-
-            divider()
-
-            // Distância | Pace
-            HStack(spacing: 0) {
-                MetricCell(value: wm.metrics.distanceKm.formattedDistance, unit: "km", color: .tempoOrange)
-                Divider().background(Color.gray.opacity(0.3)).frame(height: 32)
-                MetricCell(value: wm.metrics.currentPace.formattedPace, unit: "/km")
-            }
-
-            divider()
-
-            // FC + zona
-            HStack(spacing: 4) {
-                Image(systemName: "heart.fill").foregroundColor(zoneColor(wm.metrics.currentZone)).font(.system(size: 12))
-                Text("\(wm.metrics.heartRate, default: "%.0f")")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+        VStack(spacing: 4) {
+            // Top bar: elapsed + GPS
+            HStack {
+                Text(wm.elapsedTime.formattedDuration)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(.white).monospacedDigit()
-                Text("bpm")
-                    .font(.system(size: 11)).foregroundColor(.gray)
-                ZoneBadge(zone: wm.metrics.currentZone)
+                Spacer()
+                HStack(spacing: 3) {
+                    Circle().fill(Color.tempoCyan).frame(width: 5, height: 5)
+                    Text("GPS")
+                        .font(.system(size: 10))
+                        .foregroundColor(.tempoCyan)
+                }
             }
+            .padding(.horizontal, 10)
 
-            divider()
+            // Live Run label
+            Text("LIVE RUN")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundColor(.tempoCyan)
+                .kerning(1.5)
 
-            // Pace médio | Passos
-            HStack(spacing: 0) {
-                MetricCell(value: wm.metrics.averagePace.formattedPace, unit: "médio")
-                Divider().background(Color.gray.opacity(0.3)).frame(height: 28)
-                MetricCell(value: "\(wm.metrics.cadence, default: "%.0f")", unit: "spm")
+            // Big distance
+            Text(String(format: "%.2f", wm.metrics.distanceKm))
+                .font(.system(size: 42, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+            Text("KM")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(.gray)
+                .kerning(1)
+
+            // 2×2 metric grid
+            HStack(spacing: 6) {
+                LiveCell(value: wm.metrics.currentPace.formattedPace, label: "PACE ATUAL")
+                Divider().background(Color.white.opacity(0.1)).frame(height: 32)
+                LiveCell(value: "\(wm.metrics.heartRate, default: "%.0f")", label: "BPM",
+                         color: zoneColor(wm.metrics.currentZone))
             }
+            .padding(.vertical, 4)
+            .background(Color.tempoCard)
+            .cornerRadius(10)
+            .padding(.horizontal, 6)
+
+            HStack(spacing: 6) {
+                LiveCell(value: "\(wm.metrics.cadence, default: "%.0f")", label: "CADÊNCIA",
+                         color: .tempoPurple)
+                Divider().background(Color.white.opacity(0.1)).frame(height: 32)
+                LiveCell(value: wm.metrics.currentZone > 0 ? "Z\(wm.metrics.currentZone)" : "--",
+                         label: "ZONA",
+                         color: zoneColor(wm.metrics.currentZone))
+            }
+            .padding(.vertical, 4)
+            .background(Color.tempoCard)
+            .cornerRadius(10)
+            .padding(.horizontal, 6)
+
+            // Status pill
+            Text(statusLabel)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundColor(statusColor)
+                .padding(.horizontal, 12).padding(.vertical, 4)
+                .background(statusColor.opacity(0.15))
+                .cornerRadius(20)
         }
-        .padding(.horizontal, 6)
+    }
+}
+
+private struct LiveCell: View {
+    let value: String
+    let label: String
+    var color: Color = .white
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundColor(color).monospacedDigit()
+            Text(label)
+                .font(.system(size: 7, weight: .semibold))
+                .foregroundColor(.gray)
+                .kerning(0.5)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
