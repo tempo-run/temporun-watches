@@ -16,8 +16,18 @@
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
+    <key>WKCompanionAppBundleIdentifier</key>
+    <string>com.temporun.watch</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
     <key>NSHealthShareUsageDescription</key>
     <string>O TempoRun usa o HealthKit para salvar suas corridas e ler sua frequência cardíaca durante o treino.</string>
     <key>NSHealthUpdateUsageDescription</key>
