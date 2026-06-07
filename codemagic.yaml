@@ -12,7 +12,7 @@ workflows:
           include: true
 
     environment:
-      xcode: "16"
+      xcode: "latest"
       groups:
         - TEMPORUN-WATCH-SECRETS
       vars:
