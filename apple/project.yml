@@ -146,7 +146,7 @@ platform: watchOS
 deploymentTarget: "10.0"
 bundleId: com.temporun.watch.watchkitapp.watchkitextension
 
-```
+
 info:
   path: TempoRunWatch/WidgetExtension-Info.plist
   properties:
