@@ -4,7 +4,7 @@ options:
   deploymentTarget:
     iOS: "17.0"
     watchOS: "10.0"
-  xcodeVersion: "16"
+  xcodeVersion: "latest"
 
 settings:
   base:
@@ -27,6 +27,12 @@ targets:
         CFBundleDisplayName: TempoRun Watch
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
+        CFBundleIconName: AppIcon
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
