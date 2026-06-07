@@ -80,7 +80,7 @@ targets:
       path: TempoRunWatch/TempoRunWatch.entitlements
     settings:
       base:
-        INFOPLIST_FILE: TempoRunWatch/Info.plist
+        
         PRODUCT_BUNDLE_IDENTIFIER: com.temporun.watch.watchkitapp
         SWIFT_VERSION: "5.9"
         PROVISIONING_PROFILE_SPECIFIER: TempoRun Watch App Distribution
