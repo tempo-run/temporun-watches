@@ -187,6 +187,7 @@ private struct HomeLoadingView: View {
 
 private struct HomeNoPlanView: View {
     @EnvironmentObject var planManager: TrainingPlanManager
+    @EnvironmentObject var workoutManager: WorkoutManager
 
     var body: some View {
         VStack(spacing: 10) {
@@ -203,13 +204,23 @@ private struct HomeNoPlanView: View {
                 .font(.system(size: 9, design: .rounded))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
+            Button(action: { workoutManager.startWorkout() }) {
+                Text("Iniciar corrida")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(LinearGradient.tempoPurpleCyan)
+                    .cornerRadius(24)
+            }
+            .buttonStyle(.plain)
             Button(action: { planManager.requestPlanFromPhone() }) {
                 Text("Sincronizar")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(.gray)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 7)
-                    .background(LinearGradient.tempoPurpleCyan)
+                    .background(Color.white.opacity(0.08))
                     .cornerRadius(20)
             }
             .buttonStyle(.plain)
