@@ -6,6 +6,7 @@ struct LiveMetricsView: View {
 
     var body: some View {
         TabView {
+            ControlsPage()
             PrimaryPage()
             BiomechanicsPage()
             EnergyPage()
@@ -13,7 +14,6 @@ struct LiveMetricsView: View {
             AltitudePage()
             SplitsPage()
             PredictionsPage()
-            ControlsPage()
         }
         .tabViewStyle(.page)
         .environmentObject(workoutManager)
