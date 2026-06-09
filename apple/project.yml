@@ -102,8 +102,6 @@ targets:
         type: folder.assetcatalog
     dependencies:
       - target: TempoRunWatchWidget
-    capabilities:
-      healthkit: {}
 
   TempoRunWatchWidget:
     type: app-extension

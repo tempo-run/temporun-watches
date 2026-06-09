@@ -66,15 +66,17 @@ workflows:
         script: |
           PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
           XCODE_PROFILES_HOME="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-          echo "=== Entitlements de cada profile instalado ==="
+          echo "=== Entitlements COMPLETOS de cada profile instalado ==="
           for profile in "$PROFILES_HOME"/*.mobileprovision "$XCODE_PROFILES_HOME"/*.mobileprovision; do
             [ -f "$profile" ] || continue
             security cms -D -i "$profile" > /tmp/prof.plist 2>/dev/null
             NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/prof.plist 2>/dev/null)
-            BUNDLE=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/prof.plist 2>/dev/null)
-            HK=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.healthkit" /tmp/prof.plist 2>/dev/null || echo "NAO PRESENTE")
-            echo "  Profile: $NAME  |  Bundle: $BUNDLE  |  HealthKit: $HK"
+            echo "--- Profile: $NAME ---"
+            /usr/libexec/PlistBuddy -c "Print :Entitlements" /tmp/prof.plist 2>/dev/null || echo "(sem entitlements)"
+            echo ""
           done
+          echo "=== Conteudo do arquivo de entitlements ==="
+          cat TempoRunWatch/TempoRunWatch.entitlements
           echo ""
           echo "=== CODE_SIGN_ENTITLEMENTS no pbxproj ==="
           grep -n "CODE_SIGN_ENTITLEMENTS" TempoRunWatch.xcodeproj/project.pbxproj || echo "(nao encontrado)"
@@ -196,16 +198,68 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution"
 
-          # 3b. Verificar entitlements assinados no watch app
-          echo "=== Entitlements assinados no Watch App ==="
-          WATCH_APP_DIAG=$(find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "TempoRunWatch.app" | grep -v "\.dSYM" | head -1)
-          if [ -n "$WATCH_APP_DIAG" ]; then
-            echo "Watch app: $WATCH_APP_DIAG"
-            codesign -d --entitlements :- "$WATCH_APP_DIAG" 2>/dev/null | xmllint --format - 2>/dev/null || \
-              codesign -d --entitlements - "$WATCH_APP_DIAG" 2>&1 || true
+          # 3b. Force-resign watch app com entitlements corretos (HealthKit)
+          echo "=== Re-assinando watch app com entitlements de HealthKit ==="
+          WATCH_APP_PATH=$(find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "TempoRunWatch.app" | grep -v "\.dSYM" | head -1)
+          STUB_APP_PATH=$(ls -d "build/ios/xcarchive/TempoRunStub.xcarchive/Products/Applications"/*.app 2>/dev/null | head -1)
+
+          if [ -n "$WATCH_APP_PATH" ]; then
+            SIGN_ID=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -1 | awk '{print $2}')
+            echo "Identidade: $SIGN_ID"
+            echo "Watch app: $WATCH_APP_PATH"
+
+            # Criar entitlements completos para o watch app
+            cat > /tmp/watch_entitlements.plist << 'ENTEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>application-identifier</key>
+    <string>N48XV6SR5A.com.temporun.watch.watchkitapp</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>N48XV6SR5A</string>
+    <key>com.apple.developer.healthkit</key>
+    <true/>
+    <key>get-task-allow</key>
+    <false/>
+</dict>
+</plist>
+ENTEOF
+
+            # Re-assinar widget extension primeiro (nested mais profundo)
+            WIDGET_APP=$(find "$WATCH_APP_PATH" -name "*.appex" | head -1)
+            if [ -n "$WIDGET_APP" ]; then
+              echo "Re-assinando widget: $WIDGET_APP"
+              codesign --force --sign "$SIGN_ID" \
+                --preserve-metadata=identifier,entitlements,resource-rules,requirements \
+                "$WIDGET_APP" || true
+            fi
+
+            # Re-assinar o watch app com HealthKit
+            codesign --force --sign "$SIGN_ID" \
+              --entitlements /tmp/watch_entitlements.plist \
+              "$WATCH_APP_PATH"
+            echo "Watch app re-assinado com HealthKit."
+
+            # Re-assinar stub iOS para refletir a mudanca no watch app
+            if [ -n "$STUB_APP_PATH" ]; then
+              echo "Re-assinando stub iOS: $STUB_APP_PATH"
+              STUB_ENT_TMP=/tmp/stub_ent_current.plist
+              codesign -d --entitlements :- "$STUB_APP_PATH" 2>/dev/null > "$STUB_ENT_TMP" || true
+              codesign --force --sign "$SIGN_ID" \
+                --entitlements "$STUB_ENT_TMP" \
+                "$STUB_APP_PATH"
+              echo "Stub re-assinado."
+            fi
           else
-            echo "WATCH APP NAO ENCONTRADO no archive!"
+            echo "WATCH APP NAO ENCONTRADO para re-assinar!"
             find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "*.app" || true
+          fi
+
+          # 3c. Verificar entitlements apos re-assinatura
+          echo "=== Entitlements do Watch App apos re-assinatura ==="
+          if [ -n "$WATCH_APP_PATH" ]; then
+            codesign -d --entitlements :- "$WATCH_APP_PATH" 2>/dev/null | plutil -p - 2>/dev/null || true
           fi
 
           # 4. Empacotar o IPA manualmente a partir do .xcarchive.
