@@ -209,9 +209,20 @@ workflows:
           echo "=== IPA empacotado ==="
           ls -la build/ios/ipa
 
-          # Verifica a assinatura do app dentro do IPA (diagnostico)
-          echo "Verificando assinatura..."
-          codesign -dv --verbose=2 "$APP_PATH" 2>&1 | head -n 20 || true
+          # Verifica entitlements assinados (diagnostico)
+          echo "=== Entitlements do iOS Stub ==="
+          codesign -d --entitlements :- "$APP_PATH" 2>/dev/null | plutil -p - 2>/dev/null || \
+            codesign -d --entitlements - "$APP_PATH" 2>&1 | head -n 40 || true
+
+          WATCH_APP=$(find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "TempoRunWatch.app" | head -1)
+          if [ -n "$WATCH_APP" ]; then
+            echo "=== Entitlements do Watch App ($WATCH_APP) ==="
+            codesign -d --entitlements :- "$WATCH_APP" 2>/dev/null | plutil -p - 2>/dev/null || \
+              codesign -d --entitlements - "$WATCH_APP" 2>&1 | head -n 40 || true
+            echo "=== Provisioning profile embarcado no Watch App ==="
+            security cms -D -i "$WATCH_APP/embedded.mobileprovision" 2>/dev/null | \
+              /usr/libexec/PlistBuddy -c "Print :Entitlements" /dev/stdin 2>/dev/null || true
+          fi
 
     artifacts:
       - apple/build/ios/ipa/*.ipa
