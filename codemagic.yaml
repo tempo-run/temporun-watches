@@ -208,23 +208,15 @@ workflows:
             echo "Identidade: $SIGN_ID"
             echo "Watch app: $WATCH_APP_PATH"
 
-            # Criar entitlements completos para o watch app
-            cat > /tmp/watch_entitlements.plist << 'ENTEOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>application-identifier</key>
-    <string>N48XV6SR5A.com.temporun.watch.watchkitapp</string>
-    <key>com.apple.developer.team-identifier</key>
-    <string>N48XV6SR5A</string>
-    <key>com.apple.developer.healthkit</key>
-    <true/>
-    <key>get-task-allow</key>
-    <false/>
-</dict>
-</plist>
-ENTEOF
+            # Criar entitlements completos para o watch app via PlistBuddy
+            /usr/libexec/PlistBuddy -c "Clear dict" /tmp/watch_entitlements.plist 2>/dev/null || true
+            /usr/libexec/PlistBuddy \
+              -c "Add :application-identifier string N48XV6SR5A.com.temporun.watch.watchkitapp" \
+              -c "Add :com.apple.developer.team-identifier string N48XV6SR5A" \
+              -c "Add :com.apple.developer.healthkit bool true" \
+              -c "Add :get-task-allow bool false" \
+              /tmp/watch_entitlements.plist
+            echo "Entitlements criados:"; plutil -p /tmp/watch_entitlements.plist || true
 
             # Re-assinar widget extension primeiro (nested mais profundo)
             WIDGET_APP=$(find "$WATCH_APP_PATH" -name "*.appex" | head -1)
