@@ -62,6 +62,7 @@ workflows:
         script: xcode-project use-profiles
 
       - name: Diagnostico — entitlements dos profiles instalados
+        working_directory: apple
         script: |
           PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
           XCODE_PROFILES_HOME="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
@@ -74,6 +75,9 @@ workflows:
             HK=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.healthkit" /tmp/prof.plist 2>/dev/null || echo "NAO PRESENTE")
             echo "  Profile: $NAME  |  Bundle: $BUNDLE  |  HealthKit: $HK"
           done
+          echo ""
+          echo "=== CODE_SIGN_ENTITLEMENTS no pbxproj ==="
+          grep -n "CODE_SIGN_ENTITLEMENTS" TempoRunWatch.xcodeproj/project.pbxproj || echo "(nao encontrado)"
 
       - name: Build IPA (archive + empacotar)
         working_directory: apple
@@ -191,6 +195,18 @@ workflows:
             DEVELOPMENT_TEAM=N48XV6SR5A \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution"
+
+          # 3b. Verificar entitlements assinados no watch app
+          echo "=== Entitlements assinados no Watch App ==="
+          WATCH_APP_DIAG=$(find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "TempoRunWatch.app" | grep -v "\.dSYM" | head -1)
+          if [ -n "$WATCH_APP_DIAG" ]; then
+            echo "Watch app: $WATCH_APP_DIAG"
+            codesign -d --entitlements :- "$WATCH_APP_DIAG" 2>/dev/null | xmllint --format - 2>/dev/null || \
+              codesign -d --entitlements - "$WATCH_APP_DIAG" 2>&1 || true
+          else
+            echo "WATCH APP NAO ENCONTRADO no archive!"
+            find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "*.app" || true
+          fi
 
           # 4. Empacotar o IPA manualmente a partir do .xcarchive.
           #    O `xcodebuild -exportArchive` falha na imagem do Codemagic com
