@@ -1,0 +1,60 @@
+# Version catalog — TempoRun Wear OS
+# Versões fixadas a partir de releases ESTÁVEIS verificados no Google Maven / Maven Central.
+
+# Toolchain clássico estável (AGP < 9) — ver DECISIONS.md (D3). AGP 9 traz Kotlin embutido
+# e rejeita o plugin kotlin-android clássico; a config de Compose ainda não é documentada,
+# então fixamos um stack consolidado: Gradle 8.14.3 + AGP 8.13.2 + Kotlin 2.0.21 + Compose 1.7.
+[versions]
+agp = "8.13.2"
+kotlin = "2.0.21"
+coreKtx = "1.15.0"
+activityCompose = "1.9.3"
+composeBom = "2024.12.01"
+wearCompose = "1.4.1"
+lifecycle = "2.8.7"
+healthServices = "1.0.0"
+playServicesWearable = "19.0.0"
+wearOngoing = "1.0.0"
+kotlinxSerialization = "1.7.3"
+kotlinxCoroutines = "1.9.0"
+concurrentFutures = "1.2.0"
+guava = "33.3.1-android"
+
+[libraries]
+core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+
+# Compose — versões gerenciadas pelo BOM
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+
+# Wear Compose (estável)
+wear-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "wearCompose" }
+wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
+wear-compose-navigation = { group = "androidx.wear.compose", name = "compose-navigation", version.ref = "wearCompose" }
+wear-ongoing = { group = "androidx.wear", name = "wear-ongoing", version.ref = "wearOngoing" }
+
+# Lifecycle / ViewModel em Compose
+lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+
+# Health Services (sensores / sessão de exercício)
+health-services-client = { group = "androidx.health", name = "health-services-client", version.ref = "healthServices" }
+
+# Wearable Data Layer (comunicação com o celular)
+play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+
+# Serialização / coroutines
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+concurrent-futures-ktx = { group = "androidx.concurrent", name = "concurrent-futures-ktx", version.ref = "concurrentFutures" }
+# Guava — expõe com.google.common.util.concurrent.ListenableFuture (retornado pelo Health Services)
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
