@@ -61,6 +61,20 @@ workflows:
         working_directory: apple
         script: xcode-project use-profiles
 
+      - name: Diagnostico — entitlements dos profiles instalados
+        script: |
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          XCODE_PROFILES_HOME="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          echo "=== Entitlements de cada profile instalado ==="
+          for profile in "$PROFILES_HOME"/*.mobileprovision "$XCODE_PROFILES_HOME"/*.mobileprovision; do
+            [ -f "$profile" ] || continue
+            security cms -D -i "$profile" > /tmp/prof.plist 2>/dev/null
+            NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/prof.plist 2>/dev/null)
+            BUNDLE=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/prof.plist 2>/dev/null)
+            HK=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.healthkit" /tmp/prof.plist 2>/dev/null || echo "NAO PRESENTE")
+            echo "  Profile: $NAME  |  Bundle: $BUNDLE  |  HealthKit: $HK"
+          done
+
       - name: Build IPA (archive + empacotar)
         working_directory: apple
         script: |
