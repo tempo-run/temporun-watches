@@ -287,10 +287,38 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 
 ## Samsung / Wear OS
 
-| Item | Status |
-|------|--------|
-| Estrutura `samsung/` criada | ✅ |
-| Implementação | ⏳ planejado |
+> Plano completo em `WEAR_OS_PLAN.md`; decisões em `samsung/DECISIONS.md`.
+> Stack: Kotlin + Compose for Wear OS + Health Services (Gradle 8.14.3 / AGP 8.13.2).
+
+### Fase 0 — Setup ✅
+| Item | Status | Arquivo |
+|------|--------|---------|
+| Projeto Gradle (`samsung/`, módulo `:wear`) + version catalog + wrapper | ✅ | `samsung/` |
+| `applicationId com.temporun.run` (pareamento Data Layer) | ✅ | `samsung/wear/build.gradle.kts` |
+| Manifest: foreground service `health`, permissões de sensores/GPS | ✅ | `samsung/wear/src/main/AndroidManifest.xml` |
+| Theme (preto OLED + laranja TempoRun) | ✅ | `presentation/theme/Theme.kt` |
+| **Build `:wear:assembleDebug` → BUILD SUCCESSFUL** (APK debug) | ✅ | — |
+
+### Fase 1 — MVP corrida 🔄 (estrutura pronta, captura a completar)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `WorkoutState`, `LiveMetrics`, `HeartRateZones`, `RacePredictions`, `SplitTracker` | ✅ | `workout/` |
+| `ExerciseManager` (Health Services `ExerciseClient`) — métricas básicas | 🔄 | `workout/ExerciseManager.kt` |
+| `WorkoutViewModel` (estado + timer) | ✅ | `workout/WorkoutViewModel.kt` |
+| `WorkoutService` (foreground) — esqueleto | 🔄 | `workout/WorkoutService.kt` |
+| UI: Start → Live → Summary (navegação por estado) | ✅ | `presentation/` |
+| Captura completa (biomecânica, elevação, zonas), pager de 8 páginas, splits + haptic | ⏳ | — |
+
+### Fases 2–5 ⏳ (stubs documentados `TODO(Fase X)`)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| Data Layer (relógio→celular) | ⏳ | `connectivity/DataLayerManager.kt` |
+| `WorkoutPayload` + `toSupabaseMap()` (schema da edge function) | ✅ | `connectivity/WorkoutPayload.kt` |
+| Plano de treino no relógio + alerta de pace | ⏳ | `training/` |
+| Standalone (Supabase/Ktor) + fila offline + rede | ⏳ | `network/` |
+| Complications + Tiles | ⏳ | — |
+| **Backend:** estender dedup/merge p/ `wear_os` (ver `WEAR_OS_PLAN.md` §9) | ⏳ | `apple/supabase/watch_migration.sql` |
+| **Celular:** plugin Capacitor (`WearableListenerService`) → edge function | ⏳ | `temporun-app` |
 
 ---
 
