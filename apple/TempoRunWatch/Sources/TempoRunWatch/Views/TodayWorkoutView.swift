@@ -102,7 +102,7 @@ private struct HomeWorkoutCard: View {
                     .padding(.vertical, 8)
                 } else {
                     Button(action: { workoutManager.startWorkout() }) {
-                        Text("Iniciar corrida")
+                        Text("Iniciar atividade")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -205,7 +205,7 @@ private struct HomeNoPlanView: View {
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
             Button(action: { workoutManager.startWorkout() }) {
-                Text("Iniciar corrida")
+                Text("Iniciar atividade")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
