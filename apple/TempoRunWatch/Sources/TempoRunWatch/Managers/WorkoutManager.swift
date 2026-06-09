@@ -284,10 +284,8 @@ class WorkoutManager: NSObject, ObservableObject {
 
     func startWorkout() {
         gpsAcquired = false
-        requestLocationAuthorization()
         Task {
             await requestAuthorization()
-            VoiceCoach.shared.announceStart()
             let config = HKWorkoutConfiguration()
             config.activityType = .running
             config.locationType = .outdoor
@@ -311,6 +309,7 @@ class WorkoutManager: NSObject, ObservableObject {
                 state = .running
                 startTimer()
                 locationManager.startUpdatingLocation()
+                VoiceCoach.shared.announceStart()
             } catch {
                 print("Erro ao iniciar sessão: \(error)")
             }
