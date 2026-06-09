@@ -245,6 +245,7 @@ class WorkoutManager: NSObject, ObservableObject {
         await fetchRestingMetrics()
     }
 
+
     /// Pede autorização de localização. Chamar cedo (no launch) para o usuário
     /// liberar o GPS antes de iniciar a corrida.
     func requestLocationAuthorization() {
@@ -285,7 +286,11 @@ class WorkoutManager: NSObject, ObservableObject {
     func startWorkout() {
         gpsAcquired = false
         Task {
+            guard HKHealthStore.isHealthDataAvailable() else { return }
+
+            // Garante que a autorização foi pedida (no-op se já foi concedida)
             await requestAuthorization()
+
             let config = HKWorkoutConfiguration()
             config.activityType = .running
             config.locationType = .outdoor
@@ -293,10 +298,11 @@ class WorkoutManager: NSObject, ObservableObject {
             do {
                 let session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
                 let builder = session.associatedWorkoutBuilder()
-                builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
-                                                              workoutConfiguration: config)
+                // Delegates antes de dataSource para evitar NSException na inicialização
                 session.delegate = self
                 builder.delegate = self
+                builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
+                                                              workoutConfiguration: config)
                 workoutSession = session
                 workoutBuilder = builder
                 routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)

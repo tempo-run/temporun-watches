@@ -69,8 +69,7 @@ final class VoiceCoach {
     // MARK: - Sessão de áudio
 
     private func activateSession() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers, .mixWithOthers])
-        try? session.setActive(true, options: [])
+        // watchOS AVAudioSession é limitado; deixa o sintetizador gerenciar sozinho.
+        // Chamadas manuais podem lançar NSException em certos modelos/versões.
     }
 }

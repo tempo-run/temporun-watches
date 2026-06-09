@@ -16,8 +16,10 @@ struct TempoRunWatchApp: App {
                 .environmentObject(planManager)
                 .environmentObject(offlineQueue)
                 .task {
-                    // Pede o GPS logo no início, antes de iniciar qualquer corrida.
+                    // Pede GPS e HealthKit logo no início para que o diálogo de
+                    // autorização não apareça no meio da inicialização do treino.
                     workoutManager.requestLocationAuthorization()
+                    await workoutManager.requestAuthorization()
                 }
         }
     }
