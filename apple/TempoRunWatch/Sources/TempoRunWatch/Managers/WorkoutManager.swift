@@ -288,9 +288,6 @@ class WorkoutManager: NSObject, ObservableObject {
         Task {
             guard HKHealthStore.isHealthDataAvailable() else { return }
 
-            // Garante que a autorização foi pedida (no-op se já foi concedida)
-            await requestAuthorization()
-
             let config = HKWorkoutConfiguration()
             config.activityType = .running
             config.locationType = .outdoor

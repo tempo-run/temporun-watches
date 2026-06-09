@@ -101,7 +101,12 @@ private struct HomeWorkoutCard: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                 } else {
-                    Button(action: { workoutManager.startWorkout() }) {
+                    Button(action: {
+                        Task {
+                            await workoutManager.requestAuthorization()
+                            workoutManager.startWorkout()
+                        }
+                    }) {
                         Text("Iniciar atividade")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
