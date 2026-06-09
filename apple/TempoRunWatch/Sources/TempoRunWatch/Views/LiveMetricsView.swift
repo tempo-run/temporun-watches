@@ -4,16 +4,20 @@ struct LiveMetricsView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @EnvironmentObject var planManager: TrainingPlanManager
 
+    // Inicia na página de métricas (PrimaryPage); Controls fica como a
+    // primeira página ao rolar para a esquerda.
+    @State private var selection = 1
+
     var body: some View {
-        TabView {
-            ControlsPage()
-            PrimaryPage()
-            BiomechanicsPage()
-            EnergyPage()
-            CardioPage()
-            AltitudePage()
-            SplitsPage()
-            PredictionsPage()
+        TabView(selection: $selection) {
+            ControlsPage().tag(0)
+            PrimaryPage().tag(1)
+            BiomechanicsPage().tag(2)
+            EnergyPage().tag(3)
+            CardioPage().tag(4)
+            AltitudePage().tag(5)
+            SplitsPage().tag(6)
+            PredictionsPage().tag(7)
         }
         .tabViewStyle(.page)
         .environmentObject(workoutManager)
@@ -369,7 +373,7 @@ private struct ControlsPage: View {
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity).padding(.vertical, 10)
-                    .background(Color.red.opacity(0.75)).cornerRadius(24)
+                    .background(LinearGradient.tempoPurpleCyan).cornerRadius(24)
             }.buttonStyle(.plain)
         }
         .padding()
