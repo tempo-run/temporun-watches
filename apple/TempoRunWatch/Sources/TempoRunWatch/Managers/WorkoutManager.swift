@@ -307,14 +307,23 @@ class WorkoutManager: NSObject, ObservableObject {
                 startDate = Date()
                 lastZoneTimestamp = startDate!
                 session.startActivity(with: startDate!)
-                try await builder.beginCollection(at: startDate!)
 
+                // Transiciona a UI imediatamente — não espera beginCollection,
+                // que pode falhar se algum tipo HK não foi autorizado ainda.
                 state = .running
                 startTimer()
                 locationManager.startUpdatingLocation()
                 VoiceCoach.shared.announceStart()
+
+                // beginCollection é não-fatal: sem ele os dados não são
+                // gravados no Health, mas a UI de corrida funciona normalmente.
+                do {
+                    try await builder.beginCollection(at: startDate!)
+                } catch {
+                    print("beginCollection falhou (dados não serão salvos): \(error)")
+                }
             } catch {
-                print("Erro ao iniciar sessão: \(error)")
+                print("Erro ao criar sessão: \(error)")
             }
         }
     }
