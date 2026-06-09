@@ -61,6 +61,18 @@ workflows:
         working_directory: apple
         script: xcode-project use-profiles
 
+      - name: Restaurar entitlements (use-profiles limpa o arquivo)
+        working_directory: apple
+        script: |
+          # xcode-project use-profiles apaga o conteudo do arquivo de entitlements.
+          # Reescrevemos aqui com os entitlements corretos antes do archive.
+          /usr/libexec/PlistBuddy \
+            -c "Clear dict" \
+            -c "Add :com.apple.developer.healthkit bool true" \
+            TempoRunWatch/TempoRunWatch.entitlements
+          echo "Entitlements restaurados:"
+          cat TempoRunWatch/TempoRunWatch.entitlements
+
       - name: Diagnostico — entitlements dos profiles instalados
         working_directory: apple
         script: |
