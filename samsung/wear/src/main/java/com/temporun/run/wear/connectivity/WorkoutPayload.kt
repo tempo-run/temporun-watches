@@ -96,45 +96,51 @@ data class WorkoutPayload(
     /**
      * Converte para o dicionário no schema da tabela `corridas`, com os nomes EXATOS
      * que a edge function watch-workout-save espera (ver WEAR_OS_PLAN.md §1.3).
+     *
+     * A biomecânica avançada (passada, potência, contato com o solo, oscilação vertical) é
+     * OMITIDA quando o Health Services não a forneceu — assim a coluna fica NULL no banco,
+     * em vez de receber 0 e mascarar "sem dado" como "valor zero". Ver CONTRACT_AUDIT.md.
      */
-    fun toSupabaseMap(): Map<String, Any?> = mapOf(
-        "distancia_km" to distanceKm,
-        "duracao_seg" to elapsedTimeSec.toInt(),
-        "pace_medio" to averagePace,
-        "pace_melhor" to bestPace,
-        "velocidade_media" to currentSpeed,
-        "step_count" to stepCount.toInt(),
-        "cadencia" to cadence,
-        "stride_length" to strideLength,
-        "running_power" to runningPower,
-        "ground_contact" to groundContactTime,
-        "vertical_osc" to verticalOscillation,
-        "vertical_ratio" to verticalRatio,
-        "bpm_medio" to averageHeartRate,
-        "fc_min" to minHeartRate,
-        "fc_max" to maxHeartRate,
-        "vo2_estimado" to vo2Max,
-        "tempo_zona1" to timeInZone.getOrElse(1) { 0.0 },
-        "tempo_zona2" to timeInZone.getOrElse(2) { 0.0 },
-        "tempo_zona3" to timeInZone.getOrElse(3) { 0.0 },
-        "tempo_zona4" to timeInZone.getOrElse(4) { 0.0 },
-        "tempo_zona5" to timeInZone.getOrElse(5) { 0.0 },
-        "calorias_ativas" to activeEnergyBurned,
-        "calorias_basais" to basalEnergyBurned,
-        "calorias_total" to (activeEnergyBurned + basalEnergyBurned),
-        "ganho_elevacao" to elevationGain,
-        "perda_elevacao" to elevationLoss,
-        "altitude_max" to maxAltitude,
-        "altitude_min" to minAltitude,
-        "splits" to splits.map {
+    fun toSupabaseMap(): Map<String, Any?> = buildMap {
+        put("distancia_km", distanceKm)
+        put("duracao_seg", elapsedTimeSec.toInt())
+        put("pace_medio", averagePace)
+        put("pace_melhor", bestPace)
+        // velocidade MÉDIA real (m/s), não a instantânea do fim da corrida.
+        put("velocidade_media", if (elapsedTimeSec > 0) distanceKm * 1000.0 / elapsedTimeSec else 0.0)
+        put("step_count", stepCount.toInt())
+        put("cadencia", cadence)
+        // Biomecânica: só envia se houver dado (>0), senão omite → NULL.
+        if (strideLength > 0) put("stride_length", strideLength)
+        if (runningPower > 0) put("running_power", runningPower)
+        if (groundContactTime > 0) put("ground_contact", groundContactTime)
+        if (verticalOscillation > 0) put("vertical_osc", verticalOscillation)
+        if (verticalRatio > 0) put("vertical_ratio", verticalRatio)
+        put("bpm_medio", averageHeartRate)
+        put("fc_min", minHeartRate)
+        put("fc_max", maxHeartRate)
+        if (vo2Max > 0) put("vo2_estimado", vo2Max)
+        put("tempo_zona1", timeInZone.getOrElse(1) { 0.0 })
+        put("tempo_zona2", timeInZone.getOrElse(2) { 0.0 })
+        put("tempo_zona3", timeInZone.getOrElse(3) { 0.0 })
+        put("tempo_zona4", timeInZone.getOrElse(4) { 0.0 })
+        put("tempo_zona5", timeInZone.getOrElse(5) { 0.0 })
+        put("calorias_ativas", activeEnergyBurned)
+        put("calorias_basais", basalEnergyBurned)
+        put("calorias_total", activeEnergyBurned + basalEnergyBurned)
+        put("ganho_elevacao", elevationGain)
+        put("perda_elevacao", elevationLoss)
+        put("altitude_max", maxAltitude)
+        put("altitude_min", minAltitude)
+        put("splits", splits.map {
             mapOf(
                 "km" to it.km, "duracao" to it.durationSec, "pace" to it.paceSec,
                 "fc_media" to it.avgHeartRate, "ganho_elevacao" to it.elevationGain,
             )
-        },
-        "data_inicio" to startDateIso,
-        "data_fim" to endDateIso,
-        "source" to source,
-        "device" to source,
-    )
+        })
+        put("data_inicio", startDateIso)
+        put("data_fim", endDateIso)
+        put("source", source)
+        put("device", source)
+    }
 }

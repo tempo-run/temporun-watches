@@ -52,7 +52,7 @@ interface WatchWorkoutPayload {
   // Metadados
   data_inicio: string         // ISO8601
   data_fim: string
-  source: string              // "apple_watch" | "apple_watch_standalone"
+  source: string              // "apple_watch" | "apple_watch_standalone" | "wear_os" | "wear_os_standalone"
   // Opcional: vínculo com plano de treino
   plano_id?: string
   plano_semana?: number
@@ -372,7 +372,9 @@ serve(async (req: Request) => {
       user_id:      user.id,
       corrida_id:   novaCorrida.id,
       device:       payload.source,
-      sync_mode:    payload.source.includes("standalone") ? "standalone" : "watchconnectivity",
+      sync_mode:    payload.source.includes("standalone") ? "standalone"
+                  : payload.source.startsWith("wear") ? "datalayer"
+                  : "watchconnectivity",
       status:       "success",
       payload_size: JSON.stringify(payload).length,
     })

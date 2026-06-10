@@ -19,6 +19,7 @@ kotlinxSerialization = "1.7.3"
 kotlinxCoroutines = "1.9.0"
 concurrentFutures = "1.2.0"
 guava = "33.3.1-android"
+junit = "4.13.2"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -52,6 +53,9 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 concurrent-futures-ktx = { group = "androidx.concurrent", name = "concurrent-futures-ktx", version.ref = "concurrentFutures" }
 # Guava — expõe com.google.common.util.concurrent.ListenableFuture (retornado pelo Health Services)
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+
+# Testes (JVM)
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

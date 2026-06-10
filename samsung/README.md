@@ -39,9 +39,19 @@ wear/src/main/java/com/temporun/run/wear/
 ## Status (ver `../progresso.md`)
 
 - **Fase 0 — Setup:** ✅ projeto Gradle, manifest, theme, esqueleto compilando.
-- **Fase 1 — MVP corrida:** 🔄 estrutura pronta; falta captura completa de métricas,
-  foreground service integrado, pager de 8 páginas, splits + haptic.
+- **Fase 1 — MVP corrida:** ✅ código completo — captura completa de métricas com filtro de
+  capacidades, zonas de FC, splits + haptic, foreground service com Ongoing Activity, pager
+  de 7 páginas ao vivo, resumo por seções, permissões runtime. **27 testes unitários** (JVM),
+  incluindo teste de contrato do payload. ⚠️ Validação em Galaxy Watch físico pendente.
 - **Fases 2–5:** ⏳ stubs documentados com `TODO(Fase X)`.
+- **Backend:** auditoria do contrato em [`../CONTRACT_AUDIT.md`](../CONTRACT_AUDIT.md);
+  migração `wear_os` em [`supabase/wear_migration.sql`](supabase/wear_migration.sql).
+
+## Testes
+
+```bash
+./gradlew :wear:testDebugUnitTest   # roda na JVM, não precisa de relógio
+```
 
 ## Decisão de persistência
 

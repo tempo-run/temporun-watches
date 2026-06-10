@@ -79,4 +79,7 @@ dependencies {
     // Serialização / coroutines
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+
+    // Testes unitários (JVM — rodam sem relógio)
+    testImplementation(libs.junit)
 }

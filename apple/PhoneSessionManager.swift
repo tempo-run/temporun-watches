@@ -95,7 +95,10 @@ struct CorridaFromWatch {
         source                    = "apple_watch"
     }
 
-    // Converte para dicionário pronto para inserir via Supabase JS client
+    // Converte para o contrato EXATO da edge function watch-workout-save.
+    // NÃO usar para INSERT direto na tabela (várias chaves são remapeadas pela função:
+    // cadencia→cadencia_media, calorias_total→calorias, ganho_elevacao→dplus, etc.).
+    // Ver CONTRACT_AUDIT.md.
     func toSupabaseDict() -> [String: Any] {
         [
             "distancia_km": distancia_km,
@@ -107,18 +110,18 @@ struct CorridaFromWatch {
             "cadencia": cadencia,
             "stride_length": stride_length,
             "running_power": running_power,
-            "ground_contact_time": ground_contact_time,
-            "vertical_oscillation": vertical_oscillation,
+            "ground_contact": ground_contact_time,
+            "vertical_osc": vertical_oscillation,
             "vertical_ratio": vertical_ratio,
             "physical_effort": physical_effort,
-            "frequencia_cardiaca_media": frequencia_cardiaca_media,
-            "frequencia_cardiaca_min": frequencia_cardiaca_min,
-            "frequencia_cardiaca_max": frequencia_cardiaca_max,
+            "bpm_medio": frequencia_cardiaca_media,
+            "fc_min": frequencia_cardiaca_min,
+            "fc_max": frequencia_cardiaca_max,
             "hrv_sdnn": hrv_sdnn,
             "fc_repouso": fc_repouso,
             "vo2_estimado": vo2_estimado,
             "spo2": spo2,
-            "frequencia_respiratoria": frequencia_respiratoria,
+            "frequencia_resp": frequencia_respiratoria,
             "tempo_zona1": tempo_zona1,
             "tempo_zona2": tempo_zona2,
             "tempo_zona3": tempo_zona3,

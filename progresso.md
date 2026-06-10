@@ -299,25 +299,41 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 | Theme (preto OLED + laranja TempoRun) | ✅ | `presentation/theme/Theme.kt` |
 | **Build `:wear:assembleDebug` → BUILD SUCCESSFUL** (APK debug) | ✅ | — |
 
-### Fase 1 — MVP corrida 🔄 (estrutura pronta, captura a completar)
+### Fase 1 — MVP corrida ✅ (código completo; validação em hardware pendente)
 | Item | Status | Arquivo |
 |------|--------|---------|
 | `WorkoutState`, `LiveMetrics`, `HeartRateZones`, `RacePredictions`, `SplitTracker` | ✅ | `workout/` |
-| `ExerciseManager` (Health Services `ExerciseClient`) — métricas básicas | 🔄 | `workout/ExerciseManager.kt` |
-| `WorkoutViewModel` (estado + timer) | ✅ | `workout/WorkoutViewModel.kt` |
-| `WorkoutService` (foreground) — esqueleto | 🔄 | `workout/WorkoutService.kt` |
-| UI: Start → Live → Summary (navegação por estado) | ✅ | `presentation/` |
-| Captura completa (biomecânica, elevação, zonas), pager de 8 páginas, splits + haptic | ⏳ | — |
+| `ExerciseManager` — captura completa (FC+stats, distância, pace, cadência, calorias, altitude/elevação, VO₂) com filtro por capacidades do device | ✅ | `workout/ExerciseManager.kt` |
+| Zonas de FC ao vivo + tempo por zona (tick de 1 s) | ✅ | `workout/ExerciseManager.kt` |
+| Splits por km + haptic (`Haptics.kt`, padrões split/pace) | ✅ | `workout/` |
+| `WorkoutService` (foreground `health`) + **Ongoing Activity** | ✅ | `workout/WorkoutService.kt` |
+| UI ao vivo: **pager de 7 páginas** (Primárias, Energia+Zonas, Cardio, Altitude, Splits, Predições, Controles) | ✅ | `presentation/live/LiveMetricsPager.kt` |
+| Resumo pós-corrida por seções + predições Daniels | ✅ | `presentation/summary/SummaryScreen.kt` |
+| Permissões runtime (sensores/GPS/notificação) no Iniciar | ✅ | `presentation/start/StartScreen.kt` |
+| Payload final montado e despachado no encerrar (`source=wear_os`) | ✅ | `workout/WorkoutViewModel.kt` |
+| **Testes unitários (JVM): 27 testes** — splits, zonas, Daniels, parse de pace, formatadores e **teste de contrato do payload** | ✅ | `wear/src/test/` |
+| ⚠️ Validação em Galaxy Watch físico (sensores/GPS/haptics reais) | ⏳ | — |
+| Nota: biomecânica (potência/passada/contato/oscilação) não existe no Health Services 1.0.0 — página omitida por design | — | `CONTRACT_AUDIT.md` |
+
+### Backend / contrato ✅ (auditoria multi-agente em 2026-06-09)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| Edge function `watch-workout-save` confirmada **deployada** (probe OPTIONS) | ✅ | — |
+| **Auditoria do contrato de payload** — 6 bugs de NULL silencioso achados no Apple Watch | ✅ | `CONTRACT_AUDIT.md` |
+| Fix das 6 chaves no `saveStandalone` (standalone) e `toSupabaseDict` (relay iPhone) | ✅ | `apple/.../WorkoutManager.swift`, `apple/PhoneSessionManager.swift` |
+| ⚠️ Mesmo fix pendente na branch ativa do Apple (`claude/peaceful-noether-VC4aB`) — chip criado | ⏳ | — |
+| Migração `wear_os`: dedup + `sync_mode='datalayer'` (rodar no Supabase) | ✅ código / ⏳ aplicar | `samsung/supabase/wear_migration.sql` |
+| Patch da edge function: `sync_mode` p/ Wear (redeploy após a migração) | ✅ código / ⏳ deploy | `apple/supabase/functions/watch-workout-save/index.ts` |
+| CI Codemagic: build APK + testes a cada push (`temporun-watch-wearos`) | ✅ | `codemagic.yaml` |
 
 ### Fases 2–5 ⏳ (stubs documentados `TODO(Fase X)`)
 | Item | Status | Arquivo |
 |------|--------|---------|
-| Data Layer (relógio→celular) | ⏳ | `connectivity/DataLayerManager.kt` |
-| `WorkoutPayload` + `toSupabaseMap()` (schema da edge function) | ✅ | `connectivity/WorkoutPayload.kt` |
+| Data Layer (relógio→celular) — transporte real | ⏳ | `connectivity/DataLayerManager.kt` |
+| `WorkoutPayload` + `toSupabaseMap()` (contrato com teste de regressão) | ✅ | `connectivity/WorkoutPayload.kt` |
 | Plano de treino no relógio + alerta de pace | ⏳ | `training/` |
 | Standalone (Supabase/Ktor) + fila offline + rede | ⏳ | `network/` |
 | Complications + Tiles | ⏳ | — |
-| **Backend:** estender dedup/merge p/ `wear_os` (ver `WEAR_OS_PLAN.md` §9) | ⏳ | `apple/supabase/watch_migration.sql` |
 | **Celular:** plugin Capacitor (`WearableListenerService`) → edge function | ⏳ | `temporun-app` |
 
 ---

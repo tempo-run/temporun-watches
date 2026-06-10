@@ -347,7 +347,9 @@ class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Standalone save
 
     private func saveStandalone(payload: WorkoutPayload) async {
-        // Monta o dicionário no formato da tabela corridas
+        // Monta o dicionário no contrato EXATO da edge function watch-workout-save
+        // (interface WatchWorkoutPayload em index.ts). Nomes divergentes são lidos como
+        // undefined no Deno e viram NULL silencioso no banco — ver CONTRACT_AUDIT.md.
         let dict: [String: Any] = [
             "distancia_km":              payload.distanceKm,
             "duracao_seg":               Int(payload.elapsedTime),
@@ -358,18 +360,18 @@ class WorkoutManager: NSObject, ObservableObject {
             "cadencia":                  payload.cadence,
             "stride_length":             payload.strideLength,
             "running_power":             payload.runningPower,
-            "ground_contact_time":       payload.groundContactTime,
-            "vertical_oscillation":      payload.verticalOscillation,
+            "ground_contact":            payload.groundContactTime,
+            "vertical_osc":              payload.verticalOscillation,
             "vertical_ratio":            payload.verticalRatio,
             "physical_effort":           payload.physicalEffort,
-            "frequencia_cardiaca_media": payload.averageHeartRate,
-            "frequencia_cardiaca_min":   payload.minHeartRate,
-            "frequencia_cardiaca_max":   payload.maxHeartRate,
+            "bpm_medio":                 payload.averageHeartRate,
+            "fc_min":                    payload.minHeartRate,
+            "fc_max":                    payload.maxHeartRate,
             "hrv_sdnn":                  payload.heartRateVariability,
             "fc_repouso":                payload.restingHeartRate,
             "vo2_estimado":              payload.vo2Max,
             "spo2":                      payload.oxygenSaturation,
-            "frequencia_respiratoria":   payload.respiratoryRate,
+            "frequencia_resp":           payload.respiratoryRate,
             "tempo_zona1":               payload.timeInZone.count > 1 ? payload.timeInZone[1] : 0,
             "tempo_zona2":               payload.timeInZone.count > 2 ? payload.timeInZone[2] : 0,
             "tempo_zona3":               payload.timeInZone.count > 3 ? payload.timeInZone[3] : 0,
