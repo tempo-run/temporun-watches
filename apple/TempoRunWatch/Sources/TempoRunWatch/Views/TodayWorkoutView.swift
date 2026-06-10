@@ -209,7 +209,12 @@ private struct HomeNoPlanView: View {
                 .font(.system(size: 9, design: .rounded))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
-            Button(action: { workoutManager.startWorkout() }) {
+            Button(action: {
+                Task {
+                    await workoutManager.requestAuthorization()
+                    workoutManager.startWorkout()
+                }
+            }) {
                 Text("Iniciar atividade")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundColor(.white)

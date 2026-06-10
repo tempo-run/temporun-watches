@@ -183,27 +183,34 @@ class WorkoutManager: NSObject, ObservableObject {
 
     // MARK: - Tipos HK
 
-    private let shareTypes: Set<HKSampleType> = [
+    // Tipos mínimos necessários para beginCollection funcionar (HKLiveWorkoutDataSource)
+    private let coreShareTypes: Set<HKSampleType> = [
+        .workoutType(),
         HKQuantityType(.heartRate),
-        HKQuantityType(.heartRateVariabilitySDNN),
-        HKQuantityType(.restingHeartRate),
-        HKQuantityType(.vo2Max),
-        HKQuantityType(.oxygenSaturation),
-        HKQuantityType(.respiratoryRate),
         HKQuantityType(.distanceWalkingRunning),
-        HKQuantityType(.runningSpeed),
-        HKQuantityType(.stepCount),
-        HKQuantityType(.runningStrideLength),
-        HKQuantityType(.runningPower),
-        HKQuantityType(.runningGroundContactTime),
-        HKQuantityType(.runningVerticalOscillation),
         HKQuantityType(.activeEnergyBurned),
         HKQuantityType(.basalEnergyBurned),
-        HKQuantityType(.flightsClimbed),
-        HKQuantityType(.physicalEffort),
-        HKSeriesType.workoutRoute(),
-        .workoutType()
+        HKQuantityType(.stepCount),
+        HKSeriesType.workoutRoute()
     ]
+
+    // Tipos estendidos para o diálogo de autorização completo
+    private var shareTypes: Set<HKSampleType> {
+        coreShareTypes.union([
+            HKQuantityType(.heartRateVariabilitySDNN),
+            HKQuantityType(.restingHeartRate),
+            HKQuantityType(.vo2Max),
+            HKQuantityType(.oxygenSaturation),
+            HKQuantityType(.respiratoryRate),
+            HKQuantityType(.runningSpeed),
+            HKQuantityType(.runningStrideLength),
+            HKQuantityType(.runningPower),
+            HKQuantityType(.runningGroundContactTime),
+            HKQuantityType(.runningVerticalOscillation),
+            HKQuantityType(.flightsClimbed),
+            HKQuantityType(.physicalEffort)
+        ])
+    }
 
     private let readTypes: Set<HKObjectType> = [
         HKQuantityType(.heartRate),
@@ -242,7 +249,7 @@ class WorkoutManager: NSObject, ObservableObject {
     func requestAuthorization() async {
         guard HKHealthStore.isHealthDataAvailable() else { return }
         try? await healthStore.requestAuthorization(toShare: shareTypes, read: readTypes)
-        await fetchRestingMetrics()
+        Task { await fetchRestingMetrics() }
     }
 
 
