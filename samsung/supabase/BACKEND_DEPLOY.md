@@ -14,6 +14,27 @@ Projeto Supabase: **`dxfgmzaxplarrwcmbotp`**. Estado verificado em 2026-06-09:
 
 ---
 
+## Impacto no save do celular (análise — por que NÃO quebra a gravação)
+
+Auditado o caminho de gravação do `temporun-app` (`corridas-bulk-upsert/index.ts`,
+`corridas_schema.sql`, `corridas_source_providers_2705.sql`). A migração do Wear é segura:
+
+| Risco | Verdito | Evidência |
+|-------|---------|-----------|
+| Constraint em `source` rejeitar `'wear_os'` | ✅ sem risco | `source` é texto livre — `corridas_source_check` é **dropada** no schema (`corridas_schema.sql:39`, `corridas_source_providers_2705.sql:7`). Comentário: "Source must remain flexible". |
+| Índice de dedup colidir com o upsert do celular | ✅ sem risco | O celular usa `upsert(onConflict:"id")` (a PK). O índice do Wear é em `(user_id, data_inicio)`. |
+| Corrida do celular cair no índice parcial do Wear | ✅ sem risco | O celular grava `device=NULL` e não preenche `data_inicio` → fica FORA do `WHERE device IN ('wear_os',...)`. |
+| Migração dropar/alterar algo existente | ✅ sem risco | §1 cria índice **NOVO** (`corridas_wear_dedup_idx`), **não toca** o índice do Apple. §2 só mexe em `watch_sync_log` (tabela que o celular nunca escreve). |
+| Unique em `(user_id, timestamp)` | ✅ não existe | `corridas_user_timestamp_unique` é **dropada** de propósito (`corridas_schema.sql:47`): a mesma corrida pode vir de vários provedores com o mesmo horário. |
+
+**Resumo:** a migração só adiciona um índice parcial restrito a `device IN ('wear_os',
+'wear_os_standalone')` e ajusta uma constraint de uma tabela watch-only. Nenhuma coluna,
+constraint ou índice usado pelo save do celular é alterado. O pré-requisito (`watch_migration.sql`
+do Apple, que cria `data_inicio`/`watch_sync_log`) é checado por guarda — a migração falha cedo
+e clara se faltar, sem deixar a base num estado intermediário.
+
+---
+
 ## Passo 1 — Migração SQL
 
 Aplica `samsung/supabase/wear_migration.sql` (idempotente; pode rodar mais de uma vez).

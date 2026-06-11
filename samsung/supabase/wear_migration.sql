@@ -28,18 +28,21 @@ BEGIN
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 1. Dedup: estende o índice único parcial para cobrir os devices Wear OS.
---    (Mesma semântica do Apple: uma corrida por user+data_inicio por relógio.)
---    Seguro: não há linhas wear_os ainda, e o índice do Apple já garantia que
---    não há duplicatas apple_watch — então o CREATE não pode falhar por colisão.
---    O lock de escrita do CREATE INDEX é breve (tabela pequena); se a tabela for
---    grande, trocar por CREATE UNIQUE INDEX CONCURRENTLY (fora de transação).
+-- 1. Dedup: índice único parcial SEPARADO só para os devices Wear OS.
+--
+--    Decisão de segurança (após auditar o save do temporun-app — ver
+--    BACKEND_DEPLOY.md §"Impacto no save do celular"): NÃO mexemos no índice do
+--    Apple (corridas_watch_dedup_idx). Criamos um índice próprio para o Wear, então
+--    esta migração não dropa nem altera nada que já exista — risco ~zero para a
+--    gravação existente (celular e Apple Watch).
+--
+--    Por que é seguro para o celular: o save do app (corridas-bulk-upsert) usa
+--    onConflict:"id" (a PK), grava device=NULL e não usa data_inicio — logo fica
+--    FORA deste índice parcial (WHERE device IN (wear...)). Nenhuma colisão possível.
 -- -----------------------------------------------------------------------------
-DROP INDEX IF EXISTS corridas_watch_dedup_idx;
-CREATE UNIQUE INDEX IF NOT EXISTS corridas_watch_dedup_idx
+CREATE UNIQUE INDEX IF NOT EXISTS corridas_wear_dedup_idx
   ON corridas (user_id, data_inicio)
-  WHERE device IN ('apple_watch', 'apple_watch_standalone',
-                   'wear_os', 'wear_os_standalone');
+  WHERE device IN ('wear_os', 'wear_os_standalone');
 
 -- -----------------------------------------------------------------------------
 -- 2. watch_sync_log: permite o modo de sync do Wear OS ('datalayer').
@@ -81,7 +84,11 @@ END $$;
 
 -- -----------------------------------------------------------------------------
 -- 4. Verificação (rodar e conferir manualmente após aplicar):
---    SELECT indexdef FROM pg_indexes WHERE indexname = 'corridas_watch_dedup_idx';
+--    SELECT indexdef FROM pg_indexes WHERE indexname = 'corridas_wear_dedup_idx';
 --    SELECT pg_get_constraintdef(oid) FROM pg_constraint
 --      WHERE conrelid = 'public.watch_sync_log'::regclass AND contype = 'c';
+--    -- Confirmar que NÃO existe check em source (deve voltar 0 linhas):
+--    SELECT conname FROM pg_constraint
+--      WHERE conrelid = 'public.corridas'::regclass AND contype = 'c'
+--        AND pg_get_constraintdef(oid) ILIKE '%source%';
 -- -----------------------------------------------------------------------------

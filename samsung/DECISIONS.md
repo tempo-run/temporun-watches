@@ -36,8 +36,10 @@ JS, ou um realtime/refetch do Supabase. Não bloqueia o MVP.
 - Corrida recebida pelo celular: `source = "wear_os"`.
 - Corrida gravada em modo standalone: `source = "wear_os_standalone"`.
 
-Alinhado com `apple_watch` / `apple_watch_standalone`. Requer estender o índice de dedup e a
-função `merge_watch_corrida` no backend (ver `WEAR_OS_PLAN.md` §9). A coluna `device` da
+Alinhado com `apple_watch` / `apple_watch_standalone`. O backend ganha um índice de dedup
+**separado** para o Wear (não altera o do Apple) — ver `WEAR_OS_PLAN.md` §9, a migração
+`samsung/supabase/wear_migration.sql` e a análise de impacto no save do celular em
+`samsung/supabase/BACKEND_DEPLOY.md`. A coluna `device` da
 migração citava `'samsung_watch'` como exemplo — **padronizamos em `wear_os`** (cobre todos os
 relógios Wear OS, não só Samsung).
 

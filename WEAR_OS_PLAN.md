@@ -443,14 +443,17 @@ Espelham as fases do Apple Watch, adaptadas às realidades do Android.
 
 ## 9. Ajuste de backend necessário (pequeno)
 
-Hoje o dedup e o merge só reconhecem dispositivos Apple. Adicionar os valores do Wear OS:
+Hoje o dedup só reconhece dispositivos Apple. Em vez de **recriar** o índice do Apple (o que
+removeria momentaneamente a garantia dele), criamos um índice **separado** só para o Wear —
+assim a migração não toca em nada existente (mais seguro p/ a gravação atual; ver análise de
+impacto em `samsung/supabase/BACKEND_DEPLOY.md`). Versão final, idempotente, em
+`samsung/supabase/wear_migration.sql`:
 
 ```sql
--- corridas_watch_dedup_idx → recriar incluindo wear_os
-DROP INDEX IF EXISTS corridas_watch_dedup_idx;
-CREATE UNIQUE INDEX IF NOT EXISTS corridas_watch_dedup_idx
+-- índice NOVO, só para Wear (não mexe no corridas_watch_dedup_idx do Apple)
+CREATE UNIQUE INDEX IF NOT EXISTS corridas_wear_dedup_idx
   ON corridas (user_id, data_inicio)
-  WHERE device IN ('apple_watch','apple_watch_standalone','wear_os','wear_os_standalone');
+  WHERE device IN ('wear_os','wear_os_standalone');
 ```
 A função `merge_watch_corrida` é genérica (usa `p_payload->>'device'`), então só precisa que
 o cliente Wear OS envie `device = 'wear_os'`/`'wear_os_standalone'` e `source` correspondente.
