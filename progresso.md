@@ -338,10 +338,23 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 | **Celular:** `WearBridgePlugin.setCredentials` (JS → nativo, espelha CredentialSyncToWatch) | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
 | ⚠️ Validação relógio↔celular reais (pareamento, entrega) | ⏳ | — |
 
-### Fases 3–5 ⏳ (stubs documentados `TODO(Fase X)`)
+### Fase 3 — Plano de treino + alerta de pace 🔄 (código pronto; validação em hardware pendente)
 | Item | Status | Arquivo |
 |------|--------|---------|
-| Plano de treino no relógio + alerta de pace | ⏳ | `training/` |
+| `TrainingPlan` + 13 tipos + parse de `pace_alvo` + `todayWorkout()` (porte do SYS_PLAN_WEEK) | ✅ | `training/TrainingPlan.kt` |
+| `TrainingPlanRepository` (singleton): recebe plano, cache SharedPreferences, flows | ✅ | `training/TrainingPlanRepository.kt` |
+| `PaceAlertEvaluator` (lógica pura): alerta só na transição de status, após 1 min | ✅ | `training/PaceAlertEvaluator.kt` |
+| Haptic de pace fora da zona (`directionUp/Down`) ligado no tick da corrida | ✅ | `workout/WorkoutSessionHolder.kt`, `Haptics.kt` |
+| `WearListenerService` (relógio): recebe `/temporun/plan` do celular | ✅ | `connectivity/WearListenerService.kt` |
+| UI idle: 4 abas (Hoje / Semana / Livre / Status) + overlay de alerta na corrida | ✅ | `presentation/MainActivity.kt` |
+| `TodayWorkoutScreen` + `WeekPlanScreen` com dados reais do plano | ✅ | `presentation/plan/` |
+| **Celular:** `WearBridgePlugin.syncPlan()` → envia plano via Data Layer | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| Testes (JVM): transições do alerta de pace + parse do JSON de `planos_treino` | ✅ | `wear/src/test/training/` |
+| ⚠️ Validação relógio↔celular reais (sincronização do plano, haptics) | ⏳ | — |
+
+### Fases 4–5 ⏳ (stubs documentados `TODO(Fase X)`)
+| Item | Status | Arquivo |
+|------|--------|---------|
 | Standalone (Supabase/Ktor) + fila offline + rede | ⏳ | `network/` |
 | Complications + Tiles | ⏳ | — |
 

@@ -49,11 +49,24 @@
             </intent-filter>
         </activity>
 
-        <!-- Foreground service da sessão de corrida (Fase 1 — esqueleto) -->
+        <!-- Foreground service da sessão de corrida -->
         <service
             android:name=".workout.WorkoutService"
             android:exported="false"
             android:foregroundServiceType="health" />
+
+        <!-- Recebe dados do celular pelo Data Layer (plano de treino — Fase 3) -->
+        <service
+            android:name=".connectivity.WearListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/temporun/plan" />
+            </intent-filter>
+        </service>
 
     </application>
 </manifest>

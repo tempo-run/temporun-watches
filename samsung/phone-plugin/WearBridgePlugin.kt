@@ -4,6 +4,8 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.google.android.gms.wearable.PutDataMapRequest
+import com.google.android.gms.wearable.Wearable
 
 /**
  * LADO CELULAR (integrar no temporun-app/android). Ponte Capacitor mínima entre o JS do
@@ -45,5 +47,26 @@ class WearBridgePlugin : Plugin() {
     fun clearCredentials(call: PluginCall) {
         prefs.edit().clear().apply()
         call.resolve()
+    }
+
+    /**
+     * Envia o plano de treino ativo ao relógio via Data Layer (`/temporun/plan`).
+     * O JS passa `{ plan: <row de planos_treino em JSON string> }`. O relógio recebe em
+     * WearListenerService e o aplica em TrainingPlanRepository. Espelha PlanSyncToWatch.swift.
+     */
+    @PluginMethod
+    fun syncPlan(call: PluginCall) {
+        val planJson = call.getString("plan")
+        if (planJson.isNullOrEmpty()) {
+            call.reject("plan ausente")
+            return
+        }
+        val req = PutDataMapRequest.create("/temporun/plan").apply {
+            dataMap.putString("plan", planJson)
+            dataMap.putLong("ts", System.currentTimeMillis()) // força atualização do DataItem
+        }.asPutDataRequest().setUrgent()
+        Wearable.getDataClient(context).putDataItem(req)
+            .addOnSuccessListener { call.resolve() }
+            .addOnFailureListener { call.reject(it.message ?: "falha ao enviar plano") }
     }
 }

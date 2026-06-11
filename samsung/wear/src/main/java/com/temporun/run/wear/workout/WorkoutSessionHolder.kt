@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import com.temporun.run.wear.connectivity.DataLayerManager
 import com.temporun.run.wear.connectivity.WorkoutPayload
+import com.temporun.run.wear.training.TrainingPlanRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,6 +55,7 @@ object WorkoutSessionHolder {
             appContext = context.applicationContext
             exerciseManager = ExerciseManager(appContext)
             dataLayer = DataLayerManager(appContext)
+            TrainingPlanRepository.ensureInit(appContext)
             initialized = true
         }
         // Reanexa a uma corrida que sobreviveu à morte da UI / do processo.
@@ -126,6 +128,7 @@ object WorkoutSessionHolder {
 
     fun reset() {
         exerciseManager.reset()
+        TrainingPlanRepository.clearAlert()
         _elapsedSeconds.value = 0L
         _state.value = WorkoutState.IDLE
     }
@@ -136,6 +139,8 @@ object WorkoutSessionHolder {
             while (isActive) {
                 delay(1000)
                 _elapsedSeconds.value = exerciseManager.onTick()
+                // Alerta de pace por zona (haptic na transição) durante o treino guiado.
+                TrainingPlanRepository.evaluatePace(metrics.value.currentPace, _elapsedSeconds.value.toDouble())
                 if (_elapsedSeconds.value % 5 == 0L) {
                     val m = metrics.value
                     dataLayer.sendLiveUpdate(m.distanceKm, m.currentPace, m.heartRate, _elapsedSeconds.value)
