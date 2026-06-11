@@ -365,11 +365,17 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 | Testes (JVM): enqueue, sync remove enviados, retry/maxAttempts, encode/decode | ✅ | `wear/src/test/network/` |
 | ⚠️ Validação relógio com rede própria (LTE/WiFi) + fila real | ⏳ | — |
 
-### Fase 4 — Complications + Tiles ⏳ (polimento final)
+### Fase 4 — Complications + Tiles ✅ (código pronto; validação em hardware pendente)
 | Item | Status | Arquivo |
 |------|--------|---------|
-| Complication Data Source (km/streak/próximo treino) | ⏳ | — |
-| Tile (Smart Stack: progresso semanal) | ⏳ | — |
+| `ComplicationState` (km/meta/streak/xp/próximo treino) — lógica pura testada | ✅ | `complications/ComplicationState.kt` |
+| `ComplicationStore`: cache + refresh de complications e tile ao receber dados | ✅ | `complications/ComplicationStore.kt` |
+| `TempoRunComplicationService`: SHORT_TEXT, RANGED_VALUE, LONG_TEXT | ✅ | `complications/TempoRunComplicationService.kt` |
+| `TempoRunTileService` (ProtoLayout): progresso semanal + streak + próximo treino | ✅ | `tiles/TempoRunTileService.kt` |
+| `WearListenerService` recebe `/temporun/complication` | ✅ | `connectivity/WearListenerService.kt` |
+| **Celular:** `WearBridgePlugin.syncComplication()` | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| Testes (JVM): weeklyProgress, label do próximo treino, JSON | ✅ | `wear/src/test/complications/` |
+| ⚠️ Validação no mostrador/Smart Stack reais | ⏳ | — |
 
 ---
 

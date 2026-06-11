@@ -64,6 +64,12 @@ dependencies {
     implementation(libs.wear.compose.navigation)
     implementation(libs.wear.ongoing)
 
+    // Complications + Tiles (Fase 4 — glanceability)
+    implementation(libs.watchface.complications.data.source.ktx)
+    implementation(libs.wear.tiles)
+    implementation(libs.wear.protolayout)
+    implementation(libs.wear.protolayout.material)
+
     // Lifecycle / ViewModel
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)

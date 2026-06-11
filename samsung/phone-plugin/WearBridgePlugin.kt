@@ -85,4 +85,25 @@ class WearBridgePlugin : Plugin() {
             .addOnSuccessListener { call.resolve() }
             .addOnFailureListener { call.reject(it.message ?: "falha ao enviar plano") }
     }
+
+    /**
+     * Envia os dados de glanceability (complications + tile) ao relógio (Fase 4).
+     * O JS passa `{ data: JSON.stringify({ weeklyKm, weeklyGoalKm, streakDays, xp,
+     * nextWorkoutType, nextWorkoutKm, nextWorkoutDay }) }`. Espelha ComplicationSyncToWatch.swift.
+     */
+    @PluginMethod
+    fun syncComplication(call: PluginCall) {
+        val data = call.getString("data")
+        if (data.isNullOrEmpty()) {
+            call.reject("data ausente")
+            return
+        }
+        val req = PutDataMapRequest.create("/temporun/complication").apply {
+            dataMap.putString("data", data)
+            dataMap.putLong("ts", System.currentTimeMillis())
+        }.asPutDataRequest().setUrgent()
+        Wearable.getDataClient(context).putDataItem(req)
+            .addOnSuccessListener { call.resolve() }
+            .addOnFailureListener { call.reject(it.message ?: "falha ao enviar complication") }
+    }
 }

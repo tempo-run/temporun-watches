@@ -4,6 +4,7 @@ import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.WearableListenerService
+import com.temporun.run.wear.complications.ComplicationStore
 import com.temporun.run.wear.network.OfflineQueue
 import com.temporun.run.wear.network.SupabaseConfig
 import com.temporun.run.wear.training.TrainingPlanRepository
@@ -18,7 +19,7 @@ import kotlinx.coroutines.launch
  *
  * - `/temporun/plan` (Fase 3): plano de treino.
  * - `/temporun/credentials` (Fase 5): credenciais Supabase p/ o modo standalone.
- * TODO(Fase 4): dados de complicação (`/temporun/complication`).
+ * - `/temporun/complication` (Fase 4): dados de glanceability (km/streak/próximo treino).
  *
  * IMPORTANTE: `onDataChanged` também dispara para itens que ESTE nó criou (ex.: a corrida em
  * `/temporun/workout`). Por isso filtramos pelo path exato.
@@ -48,6 +49,9 @@ class WearListenerService : WearableListenerService() {
                     OfflineQueue.ensureInit(applicationContext)
                     scope.launch { OfflineQueue.syncAll() } // flush imediato se há fila pendente
                 }
+                PATH_COMPLICATION -> map.getString(KEY_COMPLICATION)?.let { json ->
+                    ComplicationStore.apply(applicationContext, json) // persiste + refresca tile/complication
+                }
             }
         }
     }
@@ -55,6 +59,8 @@ class WearListenerService : WearableListenerService() {
     companion object {
         const val PATH_PLAN = "/temporun/plan"
         const val PATH_CREDENTIALS = "/temporun/credentials"
+        const val PATH_COMPLICATION = "/temporun/complication"
         const val KEY_PLAN = "plan"
+        const val KEY_COMPLICATION = "data"
     }
 }

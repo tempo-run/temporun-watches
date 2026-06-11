@@ -68,6 +68,12 @@ lógica de XP/streak/recordes e o schema vivem num único lugar (servidor).
 
    // quando o plano ativo mudar (Fase 3):
    await Wear.syncPlan({ plan: JSON.stringify(planoAtivoRow) })
+
+   // glanceability — km da semana, streak, próximo treino (Fase 4):
+   await Wear.syncComplication({ data: JSON.stringify({
+     weeklyKm, weeklyGoalKm, streakDays, xp,
+     nextWorkoutType, nextWorkoutKm, nextWorkoutDay,
+   }) })
    ```
 
 6. **`applicationId`**: o app de relógio (`samsung/wear`) e o app do celular já usam o MESMO
@@ -79,9 +85,16 @@ lógica de XP/streak/recordes e o schema vivem num único lugar (servidor).
 - Edge function **`watch-workout-save-samsung`** criada (variante Wear; a do Apple fica intacta).
 - Ver `samsung/supabase/BACKEND_DEPLOY.md`.
 
-## Pendências (próximas fases)
+## Métodos do plugin
+
+| Método | Fase | O quê |
+|--------|------|-------|
+| `setCredentials` / `clearCredentials` | 5 | grava no celular + empurra ao relógio (standalone) |
+| `syncPlan` | 3 | envia o plano ativo ao relógio |
+| `syncComplication` | 4 | envia km/streak/próximo treino (mostrador + tile) |
+
+## Pendências (próximas melhorias)
 
 - **Fase 2.1:** emitir evento para o JS quando a corrida é salva (XP/streak/recordes) e nos
   live updates, para a UI do app reagir.
 - **Fase 5:** fila offline no celular + refresh de token no 401 (hoje só loga o erro).
-- **Fase 3/4:** `syncPlan()` e `syncComplication()` no plugin (envio celular→relógio).
