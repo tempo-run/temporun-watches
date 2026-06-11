@@ -36,6 +36,10 @@ class DataLayerManager(context: Context) {
         const val KEY_DEDUP = "key"          // unicidade da corrida (data_inicio ISO)
     }
 
+    /** Há um celular companheiro conectado? (decide Data Layer vs standalone no encerrar). */
+    suspend fun isPhoneReachable(): Boolean =
+        runCatching { nodeClient.connectedNodes.await().isNotEmpty() }.getOrDefault(false)
+
     /** Envia a corrida encerrada com entrega garantida. */
     fun sendWorkout(payload: WorkoutPayload) {
         val body = payload.toSupabaseMap().toJsonString()

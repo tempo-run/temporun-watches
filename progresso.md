@@ -352,11 +352,25 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 | Testes (JVM): transições do alerta de pace + parse do JSON de `planos_treino` | ✅ | `wear/src/test/training/` |
 | ⚠️ Validação relógio↔celular reais (sincronização do plano, haptics) | ⏳ | — |
 
-### Fases 4–5 ⏳ (stubs documentados `TODO(Fase X)`)
+### Fase 5 — Standalone + fila offline 🔄 (código pronto; validação em hardware pendente)
 | Item | Status | Arquivo |
 |------|--------|---------|
-| Standalone (Supabase/Ktor) + fila offline + rede | ⏳ | `network/` |
-| Complications + Tiles | ⏳ | — |
+| `SupabaseClient` (HttpURLConnection): POST na edge function + refresh de token no 401 | ✅ | `network/SupabaseClient.kt` |
+| `SupabaseConfig`: credenciais em SharedPreferences (recebidas do celular) | ✅ | `network/SupabaseConfig.kt` |
+| `OfflineQueueCore` (lógica pura, testada) + `OfflineQueue` (persistência) | ✅ | `network/OfflineQueue*.kt` |
+| `NetworkMonitor` (ConnectivityManager): sync automático quando a rede volta | ✅ | `network/NetworkMonitor.kt` |
+| `WorkoutSessionHolder.end()` decide: celular acessível → Data Layer; senão → Supabase/fila | ✅ | `workout/WorkoutSessionHolder.kt` |
+| Credenciais: `WearListenerService` recebe `/temporun/credentials` (+ flush da fila) | ✅ | `connectivity/WearListenerService.kt` |
+| `StandaloneStatusScreen`: rede, credenciais, fila pendente, botão sincronizar | ✅ | `presentation/status/` |
+| **Celular:** `WearBridgePlugin.setCredentials/clearCredentials` empurram p/ o relógio | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| Testes (JVM): enqueue, sync remove enviados, retry/maxAttempts, encode/decode | ✅ | `wear/src/test/network/` |
+| ⚠️ Validação relógio com rede própria (LTE/WiFi) + fila real | ⏳ | — |
+
+### Fase 4 — Complications + Tiles ⏳ (polimento final)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| Complication Data Source (km/streak/próximo treino) | ⏳ | — |
+| Tile (Smart Stack: progresso semanal) | ⏳ | — |
 
 ---
 

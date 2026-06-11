@@ -40,12 +40,28 @@ class WearBridgePlugin : Plugin() {
             putString("supabaseUserId", call.getString("userId"))
             apply()
         }
+        // Também envia ao relógio (modo standalone — Fase 5). Mantém o app local resolvendo logo.
+        val req = PutDataMapRequest.create("/temporun/credentials").apply {
+            dataMap.putString("url", call.getString("url"))
+            dataMap.putString("anonKey", call.getString("anonKey"))
+            dataMap.putString("accessToken", call.getString("accessToken"))
+            dataMap.putString("refreshToken", call.getString("refreshToken"))
+            dataMap.putString("userId", call.getString("userId"))
+            dataMap.putLong("ts", System.currentTimeMillis())
+        }.asPutDataRequest().setUrgent()
+        Wearable.getDataClient(context).putDataItem(req)
         call.resolve()
     }
 
     @PluginMethod
     fun clearCredentials(call: PluginCall) {
         prefs.edit().clear().apply()
+        // Limpa também no relógio (logout): envia credenciais vazias → SupabaseConfig.apply limpa.
+        val req = PutDataMapRequest.create("/temporun/credentials").apply {
+            dataMap.putString("url", "")
+            dataMap.putLong("ts", System.currentTimeMillis())
+        }.asPutDataRequest().setUrgent()
+        Wearable.getDataClient(context).putDataItem(req)
         call.resolve()
     }
 

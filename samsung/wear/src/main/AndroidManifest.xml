@@ -18,6 +18,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Modo standalone (Fase 5): rede própria do relógio -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".TempoRunWearApp"
@@ -55,7 +60,7 @@
             android:exported="false"
             android:foregroundServiceType="health" />
 
-        <!-- Recebe dados do celular pelo Data Layer (plano de treino — Fase 3) -->
+        <!-- Recebe dados do celular pelo Data Layer (plano — Fase 3; credenciais — Fase 5) -->
         <service
             android:name=".connectivity.WearListenerService"
             android:exported="true">
@@ -65,6 +70,10 @@
                     android:scheme="wear"
                     android:host="*"
                     android:pathPrefix="/temporun/plan" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/temporun/credentials" />
             </intent-filter>
         </service>
 

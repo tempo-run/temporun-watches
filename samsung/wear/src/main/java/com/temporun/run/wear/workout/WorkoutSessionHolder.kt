@@ -4,6 +4,11 @@ import android.content.Context
 import android.content.Intent
 import com.temporun.run.wear.connectivity.DataLayerManager
 import com.temporun.run.wear.connectivity.WorkoutPayload
+import com.temporun.run.wear.connectivity.toJsonString
+import com.temporun.run.wear.network.NetworkMonitor
+import com.temporun.run.wear.network.OfflineQueue
+import com.temporun.run.wear.network.SupabaseClient
+import com.temporun.run.wear.network.SupabaseConfig
 import com.temporun.run.wear.training.TrainingPlanRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -110,21 +115,33 @@ object WorkoutSessionHolder {
             timerJob?.cancel()
             exerciseManager.end()
 
-            // Monta e despacha o payload ANTES de derrubar o foreground service
-            // (manter a proteção do processo até o envio).
-            val payload = WorkoutPayload.from(
-                metrics = metrics.value,
-                elapsedTimeSec = exerciseManager.finalElapsedSeconds().toDouble(),
-                startDateIso = Instant.ofEpochMilli(startEpochMs).toString(),
-                endDateIso = Instant.now().toString(),
-                source = "wear_os",
-            )
-            dataLayer.sendWorkout(payload)
+            // Despacha ANTES de derrubar o foreground service (mantém o processo protegido).
+            // Decisão de caminho (espelha WorkoutManager.endWorkout do Apple, DECISIONS.md D1):
+            if (dataLayer.isPhoneReachable()) {
+                // Celular por perto → Data Layer (entrega garantida; o celular grava). source=wear_os.
+                val payload = buildPayload("wear_os")
+                dataLayer.sendWorkout(payload)
+            } else {
+                // Standalone → grava direto na edge function; enfileira se falhar/sem rede.
+                val body = buildPayload("wear_os_standalone").toSupabaseMap().toJsonString()
+                val sent = SupabaseConfig.isConfigured(appContext) &&
+                    NetworkMonitor.isConnected.value &&
+                    SupabaseClient.insertCorrida(appContext, body).ok
+                if (!sent) OfflineQueue.enqueue(body)
+            }
 
             _state.value = WorkoutState.ENDED
             stopService()
         }
     }
+
+    private fun buildPayload(source: String): WorkoutPayload = WorkoutPayload.from(
+        metrics = metrics.value,
+        elapsedTimeSec = exerciseManager.finalElapsedSeconds().toDouble(),
+        startDateIso = Instant.ofEpochMilli(startEpochMs).toString(),
+        endDateIso = Instant.now().toString(),
+        source = source,
+    )
 
     fun reset() {
         exerciseManager.reset()

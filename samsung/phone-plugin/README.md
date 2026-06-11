@@ -56,14 +56,18 @@ lógica de XP/streak/recordes e o schema vivem num único lugar (servidor).
    const Wear = registerPlugin('WearBridge')
    const { data: { session } } = await supabase.auth.getSession()
    if (session) {
+     // grava no celular (relay) E envia ao relógio (standalone, Fase 5)
      await Wear.setCredentials({
        url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY,
        accessToken: session.access_token, refreshToken: session.refresh_token,
        userId: session.user.id,
      })
    }
-   // no logout:
+   // no logout (limpa no celular e no relógio):
    await Wear.clearCredentials()
+
+   // quando o plano ativo mudar (Fase 3):
+   await Wear.syncPlan({ plan: JSON.stringify(planoAtivoRow) })
    ```
 
 6. **`applicationId`**: o app de relógio (`samsung/wear`) e o app do celular já usam o MESMO
