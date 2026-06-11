@@ -4,8 +4,6 @@ struct LiveMetricsView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @EnvironmentObject var planManager: TrainingPlanManager
 
-    // Inicia na página de métricas (PrimaryPage); Controls fica como a
-    // primeira página ao rolar para a esquerda.
     @State private var selection = 1
 
     var body: some View {
