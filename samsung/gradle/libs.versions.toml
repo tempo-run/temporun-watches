@@ -50,6 +50,7 @@ play-services-wearable = { group = "com.google.android.gms", name = "play-servic
 # Serialização / coroutines
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
 concurrent-futures-ktx = { group = "androidx.concurrent", name = "concurrent-futures-ktx", version.ref = "concurrentFutures" }
 # Guava — expõe com.google.common.util.concurrent.ListenableFuture (retornado pelo Health Services)
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }

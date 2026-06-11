@@ -328,15 +328,22 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 | Patch da edge function: `sync_mode` p/ Wear (redeploy após a migração) | ✅ código / ⏳ deploy | `apple/supabase/functions/watch-workout-save/index.ts` |
 | CI Codemagic: build APK + testes a cada push (`temporun-watch-wearos`) | ✅ | `codemagic.yaml` |
 
-### Fases 2–5 ⏳ (stubs documentados `TODO(Fase X)`)
+### Fase 2 — Sincronização via Data Layer 🔄 (código pronto; validação em hardware pendente)
 | Item | Status | Arquivo |
 |------|--------|---------|
-| Data Layer (relógio→celular) — transporte real | ⏳ | `connectivity/DataLayerManager.kt` |
+| `DataLayerManager` real: corrida via `DataClient.setUrgent()` (garantido) + live update via `MessageClient` | ✅ | `connectivity/DataLayerManager.kt` |
 | `WorkoutPayload` + `toSupabaseMap()` (contrato com teste de regressão) | ✅ | `connectivity/WorkoutPayload.kt` |
+| Conversor Map→JSON (corpo do POST, contrato fonte-única no relógio) + `LiveUpdate` | ✅ | `connectivity/SupabaseBody.kt`, `LiveUpdate.kt` |
+| **Celular:** plugin Capacitor `WearWorkoutListenerService` → edge function (Caminho b) | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| **Celular:** `WearBridgePlugin.setCredentials` (JS → nativo, espelha CredentialSyncToWatch) | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| ⚠️ Validação relógio↔celular reais (pareamento, entrega) | ⏳ | — |
+
+### Fases 3–5 ⏳ (stubs documentados `TODO(Fase X)`)
+| Item | Status | Arquivo |
+|------|--------|---------|
 | Plano de treino no relógio + alerta de pace | ⏳ | `training/` |
 | Standalone (Supabase/Ktor) + fila offline + rede | ⏳ | `network/` |
 | Complications + Tiles | ⏳ | — |
-| **Celular:** plugin Capacitor (`WearableListenerService`) → edge function | ⏳ | `temporun-app` |
 
 ---
 

@@ -1,40 +1,65 @@
 package com.temporun.run.wear.connectivity
 
 import android.content.Context
+import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /**
  * Comunicação com o celular pelo Wearable Data Layer. Equivalente ao WatchSessionManager.swift
  * (WatchConnectivity). Ver WEAR_OS_PLAN.md §6 e DECISIONS.md (D1).
  *
- * Fase 0: esqueleto com os clientes do Data Layer.
- * TODO(Fase 2): enviar WorkoutPayload via DataClient.putDataItem(...).setUrgent() (entrega
- *               garantida) + MessageClient.sendMessage (imediato) e live update a cada 5s.
- *               O celular (plugin Capacitor) recebe e chama a edge function watch-workout-save.
+ * Dois canais, espelhando o Apple:
+ * - **Corrida final** (`/temporun/workout`): `DataClient` com `setUrgent()` — entrega
+ *   GARANTIDA, sobrevive a desconexão e à morte do app (análogo ao `transferUserInfo`).
+ *   O corpo já é o JSON do contrato (`toSupabaseMap().toJsonString()`); o celular só repassa
+ *   para a edge function watch-workout-save.
+ * - **Atualização ao vivo** (`/temporun/live-update`): `MessageClient.sendMessage` — imediato
+ *   e efêmero, best-effort, só quando há nó conectado (análogo ao `updateApplicationContext`).
  */
 class DataLayerManager(context: Context) {
 
     private val appContext = context.applicationContext
-    private val messageClient by lazy { Wearable.getMessageClient(appContext) }
     private val dataClient by lazy { Wearable.getDataClient(appContext) }
-    private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
+    private val messageClient by lazy { Wearable.getMessageClient(appContext) }
+    private val nodeClient by lazy { Wearable.getNodeClient(appContext) }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         const val PATH_WORKOUT = "/temporun/workout"
         const val PATH_LIVE_UPDATE = "/temporun/live-update"
-        const val PATH_REQUEST_PLAN = "/temporun/request-plan"
+        const val KEY_BODY = "body"          // JSON do contrato (corpo do POST no celular)
+        const val KEY_DEDUP = "key"          // unicidade da corrida (data_inicio ISO)
     }
 
-    /** Serializa a corrida para envio. Implementação de transporte vem na Fase 2. */
-    fun encodeWorkout(payload: WorkoutPayload): String = json.encodeToString(payload)
-
+    /** Envia a corrida encerrada com entrega garantida. */
     fun sendWorkout(payload: WorkoutPayload) {
-        // TODO(Fase 2): dataClient.putDataItem(...).setUrgent() + fallback MessageClient
+        val body = payload.toSupabaseMap().toJsonString()
+        scope.launch {
+            runCatching {
+                val req = PutDataMapRequest.create(PATH_WORKOUT).apply {
+                    dataMap.putString(KEY_BODY, body)
+                    dataMap.putString(KEY_DEDUP, payload.startDateIso)
+                }.asPutDataRequest().setUrgent()
+                dataClient.putDataItem(req).await()
+            }
+        }
     }
 
+    /** Envia métricas ao vivo (pace/FC/distância) — best-effort, só se há nó conectado. */
     fun sendLiveUpdate(distanceKm: Double, paceSec: Double, heartRate: Double, elapsedSec: Long) {
-        // TODO(Fase 2): messageClient.sendMessage(node, PATH_LIVE_UPDATE, bytes)
+        val bytes = LiveUpdate(distanceKm, paceSec, heartRate, elapsedSec).toBytes()
+        scope.launch {
+            runCatching {
+                val nodes = nodeClient.connectedNodes.await()
+                nodes.forEach { node ->
+                    runCatching { messageClient.sendMessage(node.id, PATH_LIVE_UPDATE, bytes).await() }
+                }
+            }
+        }
     }
 }
