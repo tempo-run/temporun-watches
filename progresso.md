@@ -322,10 +322,9 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 | **Auditoria do contrato de payload** — 6 bugs de NULL silencioso achados no Apple Watch | ✅ | `CONTRACT_AUDIT.md` |
 | Fix das 6 chaves no `saveStandalone` (standalone) e `toSupabaseDict` (relay iPhone) | ✅ | `apple/.../WorkoutManager.swift`, `apple/PhoneSessionManager.swift` |
 | ⚠️ Mesmo fix pendente na branch ativa do Apple (`claude/peaceful-noether-VC4aB`) — chip criado | ⏳ | — |
-| Migração `wear_os` endurecida (idempotente, drop de constraint robusto, guardas) | ✅ código / ⏳ aplicar | `samsung/supabase/wear_migration.sql` |
-| **Runbook de deploy do backend** (passos exatos: migração → redeploy → verificação) | ✅ | `samsung/supabase/BACKEND_DEPLOY.md` |
-| ⚠️ Aplicar migração + redeployar função — exige CLI Supabase + Docker (não há nesta máquina) | ⏳ | `samsung/supabase/BACKEND_DEPLOY.md` |
-| Patch da edge function: `sync_mode` p/ Wear (redeploy após a migração) | ✅ código / ⏳ deploy | `apple/supabase/functions/watch-workout-save/index.ts` |
+| Migração `wear_os` (índice separado, idempotente, guardas) — **aplicada em produção** | ✅ aplicada | `samsung/supabase/wear_migration.sql` |
+| Edge function **separada** `watch-workout-save-samsung` (Wear); a do Apple fica intacta | ✅ código / ⏳ criar no Supabase | `samsung/supabase/functions/watch-workout-save-samsung/index.ts` |
+| **Runbook de deploy do backend** (migração → criar função → verificação) | ✅ | `samsung/supabase/BACKEND_DEPLOY.md` |
 | CI Codemagic: build APK + testes a cada push (`temporun-watch-wearos`) | ✅ | `codemagic.yaml` |
 
 ### Fase 2 — Sincronização via Data Layer 🔄 (código pronto; validação em hardware pendente)

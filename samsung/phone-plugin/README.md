@@ -76,7 +76,7 @@ lógica de XP/streak/recordes e o schema vivem num único lugar (servidor).
 ## Pré-requisitos de backend
 
 - Migração `samsung/supabase/wear_migration.sql` aplicada.
-- Edge function `watch-workout-save` deployada com o patch do `sync_mode`.
+- Edge function **`watch-workout-save-samsung`** criada (variante Wear; a do Apple fica intacta).
 - Ver `samsung/supabase/BACKEND_DEPLOY.md`.
 
 ## Pendências (próximas fases)

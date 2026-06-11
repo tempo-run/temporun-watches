@@ -1,8 +1,11 @@
-// Supabase Edge Function: watch-workout-save
-// Recebe corrida do Watch, calcula XP, atualiza streak e recordes pessoais atomicamente
-// Endpoint: POST /functions/v1/watch-workout-save
+// Supabase Edge Function: watch-workout-save-samsung
+// Variante Wear OS (Samsung) da watch-workout-save. Lógica IDÊNTICA à do Apple (XP, streak,
+// recordes, dedup ±30s); a única diferença é o sync_mode reconhecer a origem Wear ('datalayer'
+// para corridas vindas pelo celular, 'standalone' para o modo direto do relógio).
+// A função do Apple (watch-workout-save) fica intacta — o Wear usa esta.
+// Endpoint: POST /functions/v1/watch-workout-save-samsung
+// source esperado: "wear_os" | "wear_os_standalone".
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -52,7 +55,7 @@ interface WatchWorkoutPayload {
   // Metadados
   data_inicio: string         // ISO8601
   data_fim: string
-  source: string              // "apple_watch" | "apple_watch_standalone"
+  source: string              // "apple_watch" | "apple_watch_standalone" | "wear_os" | "wear_os_standalone"
   // Opcional: vínculo com plano de treino
   plano_id?: string
   plano_semana?: number
@@ -232,7 +235,7 @@ async function acumularXP(
 
 // ─── Handler principal ────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: {
@@ -372,7 +375,9 @@ serve(async (req: Request) => {
       user_id:      user.id,
       corrida_id:   novaCorrida.id,
       device:       payload.source,
-      sync_mode:    payload.source.includes("standalone") ? "standalone" : "watchconnectivity",
+      sync_mode:    payload.source.includes("standalone") ? "standalone"
+                  : payload.source.startsWith("wear") ? "datalayer"
+                  : "watchconnectivity",
       status:       "success",
       payload_size: JSON.stringify(payload).length,
     })

@@ -7,8 +7,12 @@ Registro das decisões tomadas durante a implementação, conforme o `WEAR_OS_PL
 ## D1 — Persistência: gravar-na-edge-function (Caminho **b**)  ✅ decidido
 
 **Decisão:** quando o relógio envia a corrida ao celular (via Data Layer) ou grava em modo
-standalone, o destino é **sempre a edge function Supabase `watch-workout-save`** — nunca um
-INSERT cru na tabela nem uma ponte para o JavaScript do `temporun-app`.
+standalone, o destino é **sempre uma edge function Supabase** — nunca um INSERT cru na tabela
+nem uma ponte para o JavaScript do `temporun-app`.
+
+> **Atualização:** o Wear usa uma função **separada**, `watch-workout-save-samsung` (mesma
+> lógica da do Apple; só o `sync_mode` reconhece a origem Wear). Assim a função do Apple
+> `watch-workout-save` fica intacta e o deploy do Wear é independente. Ver `supabase/BACKEND_DEPLOY.md`.
 
 No lado do celular, o plugin Capacitor (`WearableListenerService`) recebe o `WorkoutPayload`
 e **chama a mesma edge function** (não repassa para o WebView/JS).

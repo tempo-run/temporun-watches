@@ -1,16 +1,19 @@
 # Backend — runbook de deploy (Wear OS)
 
-Projeto Supabase: **`dxfgmzaxplarrwcmbotp`**. Estado verificado em 2026-06-09:
+Projeto Supabase: **`dxfgmzaxplarrwcmbotp`**.
 
-- A edge function **`watch-workout-save` JÁ está deployada e live** (probe `POST` sem auth →
-  HTTP 401 do gateway com Verify-JWT; uma função inexistente daria 404). Ela **não** está em
-  `temporun-app/supabase/functions/` — foi deployada direto do repo de relógios.
-- O patch do `sync_mode` (reconhecer origem Wear) está no código deste repo, **ainda não
-  deployado**.
+**Estratégia:** o Wear OS usa uma função **separada**, `watch-workout-save-samsung`, em vez de
+editar a do Apple (`watch-workout-save`). Assim a função do Apple **fica intacta** (nada a
+redeployar nela) e o Wear é totalmente independente. A lógica das duas é idêntica; só muda o
+nome e o `sync_mode` (a Samsung reconhece origem Wear).
 
-> **Ordem obrigatória:** (1) migração SQL → (2) redeploy da função. Se a função subir antes,
-> o `INSERT` em `watch_sync_log` com `sync_mode='datalayer'` viola o CHECK e o log é perdido
-> (a corrida em si é salva — o log é best-effort).
+- `watch-workout-save` (Apple): **já live, não mexer**.
+- `watch-workout-save-samsung` (Wear): **criar nova** (Passo 2). Código em
+  `samsung/supabase/functions/watch-workout-save-samsung/index.ts`.
+
+> **Ordem obrigatória:** (1) migração SQL → (2) criar a função Samsung. Se a função subir antes
+> da migração, o `INSERT` em `watch_sync_log` com `sync_mode='datalayer'` viola o CHECK e o log
+> é perdido (a corrida em si é salva — o log é best-effort). ✅ Você já rodou a migração.
 
 ---
 
@@ -57,38 +60,33 @@ supabase db execute --file samsung/supabase/wear_migration.sql
 
 ---
 
-## Passo 2 — Redeploy da edge function
+## Passo 2 — Criar a função `watch-workout-save-samsung`
 
-Requer **Supabase CLI + Docker** (não dá para fazer pela Management API sem empacotar o
-bundle). Mantém o **Verify-JWT ligado** (a função autentica pelo header do usuário).
+**Opção A — Dashboard (sem instalar nada — recomendado):**
+1. Supabase → **Edge Functions** → **Create a new function**.
+2. Nome: **`watch-workout-save-samsung`**.
+3. Colar o conteúdo de `samsung/supabase/functions/watch-workout-save-samsung/index.ts` →
+   **Deploy**. Manter **Verify JWT ligado**.
 
-A função vive em `apple/supabase/functions/watch-workout-save/`. Como o caminho relativo a
-`apple/` já é `supabase/functions/...`, dá para deployar de lá sem copiar:
-
+**Opção B — CLI (se tiver Docker):**
 ```bash
-cd apple
-supabase functions deploy watch-workout-save --project-ref dxfgmzaxplarrwcmbotp
+cd samsung
+supabase functions deploy watch-workout-save-samsung --project-ref dxfgmzaxplarrwcmbotp
 ```
 
-**Recomendado (consistência do pipeline):** copiar a função para o diretório canônico de
-deploy do app, para que futuros `supabase functions deploy` a incluam:
-```bash
-cp -r apple/supabase/functions/watch-workout-save \
-      ../temporun-app/supabase/functions/watch-workout-save
-cd ../temporun-app && supabase functions deploy watch-workout-save
-```
+> A função do Apple (`watch-workout-save`) **não é tocada**.
 
 ---
 
 ## Passo 3 — Verificação
 
 ```bash
-# 1. Endpoint responde (401 = live + gated; 404 = não deployada)
+# 1. Endpoint responde (401 = live + gated; 404 = não criada)
 curl -s -o /dev/null -w "%{http_code}\n" -X POST \
-  https://dxfgmzaxplarrwcmbotp.supabase.co/functions/v1/watch-workout-save -d '{}'
+  https://dxfgmzaxplarrwcmbotp.supabase.co/functions/v1/watch-workout-save-samsung -d '{}'
 
 # 2. No SQL Editor — índice e constraint atualizados:
-SELECT indexdef FROM pg_indexes WHERE indexname = 'corridas_watch_dedup_idx';
+SELECT indexdef FROM pg_indexes WHERE indexname = 'corridas_wear_dedup_idx';
 SELECT pg_get_constraintdef(oid) FROM pg_constraint
   WHERE conrelid = 'public.watch_sync_log'::regclass AND contype = 'c';
 -- esperado: índice cobre wear_os/wear_os_standalone; CHECK inclui 'datalayer'.

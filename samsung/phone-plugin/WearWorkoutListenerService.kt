@@ -61,7 +61,7 @@ class WearWorkoutListenerService : WearableListenerService() {
 
         Thread {
             runCatching {
-                val conn = (URL("$url/functions/v1/watch-workout-save").openConnection() as HttpURLConnection).apply {
+                val conn = (URL("$url/functions/v1/watch-workout-save-samsung").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     doOutput = true
                     connectTimeout = 15000
