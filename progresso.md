@@ -287,10 +287,95 @@ iPhone (login) ──→ CredentialSyncToWatch.syncCredentials()
 
 ## Samsung / Wear OS
 
-| Item | Status |
-|------|--------|
-| Estrutura `samsung/` criada | ✅ |
-| Implementação | ⏳ planejado |
+> Plano completo em `WEAR_OS_PLAN.md`; decisões em `samsung/DECISIONS.md`.
+> Stack: Kotlin + Compose for Wear OS + Health Services (Gradle 8.14.3 / AGP 8.13.2).
+
+### Fase 0 — Setup ✅
+| Item | Status | Arquivo |
+|------|--------|---------|
+| Projeto Gradle (`samsung/`, módulo `:wear`) + version catalog + wrapper | ✅ | `samsung/` |
+| `applicationId com.temporun.run` (pareamento Data Layer) | ✅ | `samsung/wear/build.gradle.kts` |
+| Manifest: foreground service `health`, permissões de sensores/GPS | ✅ | `samsung/wear/src/main/AndroidManifest.xml` |
+| Theme (preto OLED + laranja TempoRun) | ✅ | `presentation/theme/Theme.kt` |
+| **Build `:wear:assembleDebug` → BUILD SUCCESSFUL** (APK debug) | ✅ | — |
+
+### Fase 1 — MVP corrida ✅ (código completo; validação em hardware pendente)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `WorkoutState`, `LiveMetrics`, `HeartRateZones`, `RacePredictions`, `SplitTracker` | ✅ | `workout/` |
+| `ExerciseManager` — captura completa (FC+stats, distância, pace, cadência, calorias, altitude/elevação, VO₂) com filtro por capacidades do device | ✅ | `workout/ExerciseManager.kt` |
+| Zonas de FC ao vivo + tempo por zona (tick de 1 s) | ✅ | `workout/ExerciseManager.kt` |
+| Splits por km + haptic (`Haptics.kt`, padrões split/pace) | ✅ | `workout/` |
+| `WorkoutService` (foreground `health`) + **Ongoing Activity** | ✅ | `workout/WorkoutService.kt` |
+| UI ao vivo: **pager de 7 páginas** (Primárias, Energia+Zonas, Cardio, Altitude, Splits, Predições, Controles) | ✅ | `presentation/live/LiveMetricsPager.kt` |
+| Resumo pós-corrida por seções + predições Daniels | ✅ | `presentation/summary/SummaryScreen.kt` |
+| Permissões runtime (sensores/GPS/notificação) no Iniciar | ✅ | `presentation/start/StartScreen.kt` |
+| Payload final montado e despachado no encerrar (`source=wear_os`) | ✅ | `workout/WorkoutViewModel.kt` |
+| **Testes unitários (JVM): 28 testes** — splits, zonas, Daniels, parse de pace, formatadores e **teste de contrato do payload** | ✅ | `wear/src/test/` |
+| ⚠️ Validação em Galaxy Watch físico (sensores/GPS/haptics reais) | ⏳ | — |
+| Nota: biomecânica (potência/passada/contato/oscilação) não existe no Health Services 1.0.0 — página omitida por design | — | `CONTRACT_AUDIT.md` |
+
+### Backend / contrato ✅ (auditoria multi-agente em 2026-06-09)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| Edge function `watch-workout-save` **deployada e live** (probe `POST`→401 do gateway; 404 = não existe) | ✅ verificado | — |
+| **Auditoria do contrato de payload** — 6 bugs de NULL silencioso achados no Apple Watch | ✅ | `CONTRACT_AUDIT.md` |
+| Fix das 6 chaves no `saveStandalone` (standalone) e `toSupabaseDict` (relay iPhone) | ✅ | `apple/.../WorkoutManager.swift`, `apple/PhoneSessionManager.swift` |
+| ⚠️ Mesmo fix pendente na branch ativa do Apple (`claude/peaceful-noether-VC4aB`) — chip criado | ⏳ | — |
+| Migração `wear_os` (índice separado, idempotente, guardas) — **aplicada em produção** | ✅ aplicada | `samsung/supabase/wear_migration.sql` |
+| Edge function **separada** `watch-workout-save-samsung` (Wear); a do Apple fica intacta | ✅ código / ⏳ criar no Supabase | `samsung/supabase/functions/watch-workout-save-samsung/index.ts` |
+| **Runbook de deploy do backend** (migração → criar função → verificação) | ✅ | `samsung/supabase/BACKEND_DEPLOY.md` |
+| CI Codemagic: build APK + testes a cada push (`temporun-watch-wearos`) | ✅ | `codemagic.yaml` |
+
+### Fase 2 — Sincronização via Data Layer 🔄 (código pronto; validação em hardware pendente)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `DataLayerManager` real: corrida via `DataClient.setUrgent()` (garantido) + live update via `MessageClient` | ✅ | `connectivity/DataLayerManager.kt` |
+| `WorkoutPayload` + `toSupabaseMap()` (contrato com teste de regressão) | ✅ | `connectivity/WorkoutPayload.kt` |
+| Conversor Map→JSON (corpo do POST, contrato fonte-única no relógio) + `LiveUpdate` | ✅ | `connectivity/SupabaseBody.kt`, `LiveUpdate.kt` |
+| **Celular:** plugin Capacitor `WearWorkoutListenerService` → edge function (Caminho b) | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| **Celular:** `WearBridgePlugin.setCredentials` (JS → nativo, espelha CredentialSyncToWatch) | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| ⚠️ Validação relógio↔celular reais (pareamento, entrega) | ⏳ | — |
+
+### Fase 3 — Plano de treino + alerta de pace 🔄 (código pronto; validação em hardware pendente)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `TrainingPlan` + 13 tipos + parse de `pace_alvo` + `todayWorkout()` (porte do SYS_PLAN_WEEK) | ✅ | `training/TrainingPlan.kt` |
+| `TrainingPlanRepository` (singleton): recebe plano, cache SharedPreferences, flows | ✅ | `training/TrainingPlanRepository.kt` |
+| `PaceAlertEvaluator` (lógica pura): alerta só na transição de status, após 1 min | ✅ | `training/PaceAlertEvaluator.kt` |
+| Haptic de pace fora da zona (`directionUp/Down`) ligado no tick da corrida | ✅ | `workout/WorkoutSessionHolder.kt`, `Haptics.kt` |
+| `WearListenerService` (relógio): recebe `/temporun/plan` do celular | ✅ | `connectivity/WearListenerService.kt` |
+| UI idle: 4 abas (Hoje / Semana / Livre / Status) + overlay de alerta na corrida | ✅ | `presentation/MainActivity.kt` |
+| `TodayWorkoutScreen` + `WeekPlanScreen` com dados reais do plano | ✅ | `presentation/plan/` |
+| **Celular:** `WearBridgePlugin.syncPlan()` → envia plano via Data Layer | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| Testes (JVM): transições do alerta de pace + parse do JSON de `planos_treino` | ✅ | `wear/src/test/training/` |
+| ⚠️ Validação relógio↔celular reais (sincronização do plano, haptics) | ⏳ | — |
+
+### Fase 5 — Standalone + fila offline 🔄 (código pronto; validação em hardware pendente)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `SupabaseClient` (HttpURLConnection): POST na edge function + refresh de token no 401 | ✅ | `network/SupabaseClient.kt` |
+| `SupabaseConfig`: credenciais em SharedPreferences (recebidas do celular) | ✅ | `network/SupabaseConfig.kt` |
+| `OfflineQueueCore` (lógica pura, testada) + `OfflineQueue` (persistência) | ✅ | `network/OfflineQueue*.kt` |
+| `NetworkMonitor` (ConnectivityManager): sync automático quando a rede volta | ✅ | `network/NetworkMonitor.kt` |
+| `WorkoutSessionHolder.end()` decide: celular acessível → Data Layer; senão → Supabase/fila | ✅ | `workout/WorkoutSessionHolder.kt` |
+| Credenciais: `WearListenerService` recebe `/temporun/credentials` (+ flush da fila) | ✅ | `connectivity/WearListenerService.kt` |
+| `StandaloneStatusScreen`: rede, credenciais, fila pendente, botão sincronizar | ✅ | `presentation/status/` |
+| **Celular:** `WearBridgePlugin.setCredentials/clearCredentials` empurram p/ o relógio | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| Testes (JVM): enqueue, sync remove enviados, retry/maxAttempts, encode/decode | ✅ | `wear/src/test/network/` |
+| ⚠️ Validação relógio com rede própria (LTE/WiFi) + fila real | ⏳ | — |
+
+### Fase 4 — Complications + Tiles ✅ (código pronto; validação em hardware pendente)
+| Item | Status | Arquivo |
+|------|--------|---------|
+| `ComplicationState` (km/meta/streak/xp/próximo treino) — lógica pura testada | ✅ | `complications/ComplicationState.kt` |
+| `ComplicationStore`: cache + refresh de complications e tile ao receber dados | ✅ | `complications/ComplicationStore.kt` |
+| `TempoRunComplicationService`: SHORT_TEXT, RANGED_VALUE, LONG_TEXT | ✅ | `complications/TempoRunComplicationService.kt` |
+| `TempoRunTileService` (ProtoLayout): progresso semanal + streak + próximo treino | ✅ | `tiles/TempoRunTileService.kt` |
+| `WearListenerService` recebe `/temporun/complication` | ✅ | `connectivity/WearListenerService.kt` |
+| **Celular:** `WearBridgePlugin.syncComplication()` | ✅ entregue / ⏳ integrar | `samsung/phone-plugin/` |
+| Testes (JVM): weeklyProgress, label do próximo treino, JSON | ✅ | `wear/src/test/complications/` |
+| ⚠️ Validação no mostrador/Smart Stack reais | ⏳ | — |
 
 ---
 

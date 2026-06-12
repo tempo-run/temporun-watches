@@ -1,4 +1,35 @@
 workflows:
+  # ── Wear OS: compila o APK debug e roda os testes unitários a cada push ─────
+  temporun-watch-wearos:
+    name: TempoRun Wear OS — Build & Testes
+    max_build_duration: 30
+    instance_type: linux_x2
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: claude/wear-os-plan
+          include: true
+
+    environment:
+      java: 17
+
+    scripts:
+      - name: Testes unitários (JVM)
+        working_directory: samsung
+        script: |
+          chmod +x gradlew
+          ./gradlew :wear:testDebugUnitTest
+
+      - name: Build APK debug
+        working_directory: samsung
+        script: ./gradlew :wear:assembleDebug
+
+    artifacts:
+      - samsung/wear/build/outputs/apk/debug/*.apk
+      - samsung/wear/build/reports/tests/**/*.html
+
   temporun-watch-ios:
     name: TempoRun Watch — Build & TestFlight
     max_build_duration: 60

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone provisório do app (vetor). Substituir por arte final antes do release. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#000000"
+        android:pathData="M0,0h48v48h-48z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M24,8a16,16 0 1,0 0.01,0z M24,14a10,10 0 1,1 -0.01,0z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M24,16l2,7l7,2l-7,2l-2,7l-2,-7l-7,-2l7,-2z" />
+</vector>
