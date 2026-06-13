@@ -213,6 +213,7 @@ class WorkoutManager: NSObject, ObservableObject {
     }
 
     private let readTypes: Set<HKObjectType> = [
+        HKObjectType.workoutType(),          // obrigatório ao ler HKWorkoutRouteTypeIdentifier
         HKQuantityType(.heartRate),
         HKQuantityType(.heartRateVariabilitySDNN),
         HKQuantityType(.restingHeartRate),
