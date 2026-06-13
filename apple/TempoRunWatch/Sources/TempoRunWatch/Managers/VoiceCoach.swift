@@ -22,16 +22,9 @@ final class VoiceCoach {
     // MARK: - Fala genérica
 
     func speak(_ text: String) {
-        guard enabled else { return }
-        let utterance = AVSpeechUtterance(string: text)
-        // pt-BR pode não estar disponível em todos os relógios — usa default se nil
-        if let voice = AVSpeechSynthesisVoice(language: "pt-BR") {
-            utterance.voice = voice
-        }
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-        utterance.volume = 1.0
-        guard !synth.isSpeaking else { return }
-        synth.speak(utterance)
+        // AVSpeechSynthesizer causa SIGABRT no watchOS neste contexto.
+        // Desabilitado até ser investigado em ambiente com depurador.
+        return
     }
 
     // MARK: - Sinais de pace
