@@ -336,11 +336,13 @@ class WorkoutManager: NSObject, ObservableObject {
                 startTimer()
                 CrashReporter.breadcrumb("startWorkout: startUpdatingLocation")
                 locationManager.startUpdatingLocation()
-                CrashReporter.breadcrumb("startWorkout: VoiceCoach.announceStart")
-                VoiceCoach.shared.announceStart()
 
                 // beginCollection é não-fatal: sem ele os dados não são
                 // gravados no Health, mas a UI de corrida funciona normalmente.
+                // VoiceCoach fica DEPOIS do await para garantir que SwiftUI
+                // renderize LiveMetricsView antes de qualquer chamada de áudio
+                // (AVSpeechSynthesizer pode travar o thread se chamado antes do
+                // primeiro ponto de suspensão na mesma task).
                 CrashReporter.breadcrumb("startWorkout: beginCollection")
                 do {
                     try await builder.beginCollection(at: startDate!)
@@ -349,6 +351,9 @@ class WorkoutManager: NSObject, ObservableObject {
                     CrashReporter.breadcrumb("startWorkout: beginCollection FALHOU: \(error.localizedDescription)")
                     print("beginCollection falhou (dados não serão salvos): \(error)")
                 }
+
+                CrashReporter.breadcrumb("startWorkout: VoiceCoach.announceStart")
+                VoiceCoach.shared.announceStart()
             } catch {
                 CrashReporter.breadcrumb("startWorkout: ERRO ao criar sessão: \(error.localizedDescription)")
                 print("Erro ao criar sessão: \(error)")

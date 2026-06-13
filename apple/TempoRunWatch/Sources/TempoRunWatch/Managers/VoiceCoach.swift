@@ -23,11 +23,14 @@ final class VoiceCoach {
 
     func speak(_ text: String) {
         guard enabled else { return }
-        activateSession()
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "pt-BR")
+        // pt-BR pode não estar disponível em todos os relógios — usa default se nil
+        if let voice = AVSpeechSynthesisVoice(language: "pt-BR") {
+            utterance.voice = voice
+        }
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         utterance.volume = 1.0
+        guard !synth.isSpeaking else { return }
         synth.speak(utterance)
     }
 
