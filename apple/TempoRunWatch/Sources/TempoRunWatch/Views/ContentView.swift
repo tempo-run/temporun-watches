@@ -76,53 +76,64 @@ private struct CrashReportOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.95).ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Diagnóstico")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+            Color.black.opacity(0.97).ignoresSafeArea()
+            VStack(spacing: 6) {
+                // Título + botão Limpar sempre visíveis sem precisar rolar
+                HStack {
+                    Text("⚠️ Diag")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.red)
-
-                    // Breadcrumbs = último passo executado antes do crash.
-                    // É a pista mais útil (o backtrace vem sem símbolos no TestFlight).
-                    let crumbs = CrashReporter.breadcrumbsText()
-                    if !crumbs.isEmpty {
-                        Text("Últimos passos:")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundColor(.tempoCyan)
-                        Text(crumbs)
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.yellow)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Divider().background(Color.white.opacity(0.2))
-                    }
-
-                    if let report {
-                        Text(report)
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.white)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else {
-                        Text("App encerrou durante o início da corrida (sem exceção capturada — provável watchdog/memória). Veja o último passo acima.")
-                            .font(.system(size: 9, design: .rounded))
-                            .foregroundColor(.white.opacity(0.8))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
+                    Spacer()
                     Button(action: onDismiss) {
                         Text("Limpar")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
                             .background(LinearGradient.tempoPurpleCyan)
-                            .cornerRadius(20)
+                            .cornerRadius(12)
                     }
                     .buttonStyle(.plain)
-                    .padding(.top, 4)
                 }
-                .padding(8)
+
+                // Último breadcrumb — onde o app parou
+                let allCrumbs = CrashReporter.breadcrumbsText()
+                let lastCrumb = allCrumbs.components(separatedBy: "\n")
+                    .filter { !$0.isEmpty }.last ?? "—"
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Último passo:")
+                        .font(.system(size: 9, weight: .bold)).foregroundColor(.tempoCyan)
+                    Text(lastCrumb)
+                        .font(.system(size: 8, design: .monospaced)).foregroundColor(.yellow)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider().background(Color.white.opacity(0.2))
+
+                // Resto do log (rolar para ver)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if !allCrumbs.isEmpty {
+                            Text(allCrumbs)
+                                .font(.system(size: 7, design: .monospaced))
+                                .foregroundColor(.yellow.opacity(0.7))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Divider().background(Color.white.opacity(0.15))
+                        }
+                        if let report {
+                            Text(report)
+                                .font(.system(size: 7, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.8))
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Text("Sem exceção. Provável watchdog/memória.")
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                    }
+                }
             }
+            .padding(8)
         }
     }
 }
