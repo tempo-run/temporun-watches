@@ -21,37 +21,12 @@ enum CrashReporter {
     // MARK: Instalação dos handlers
 
     static func install() {
+        // Só NSException handler — signal() no watchOS pode causar abort no launch
+        // em alguns sinais bloqueados pelo OS (SIGABRT, SIGTRAP, etc.).
         NSSetUncaughtExceptionHandler { exception in
             let symbols = exception.callStackSymbols.prefix(15).joined(separator: "\n")
-            let report = """
-            ⚠️ NSException
-            \(exception.name.rawValue)
-            \(exception.reason ?? "sem motivo")
-
-            \(symbols)
-            """
+            let report = "⚠️ NSException\n\(exception.name.rawValue)\n\(exception.reason ?? "sem motivo")\n\n\(symbols)"
             UserDefaults.standard.set(report, forKey: "lastCrashReport")
-        }
-
-        let handledSignals: [Int32] = [SIGABRT, SIGILL, SIGSEGV, SIGFPE, SIGBUS, SIGTRAP]
-        for sig in handledSignals {
-            signal(sig) { received in
-                let name: String
-                switch received {
-                case SIGABRT: name = "SIGABRT (abort/assert)"
-                case SIGILL:  name = "SIGILL (instrução inválida / Swift trap)"
-                case SIGSEGV: name = "SIGSEGV (memória inválida)"
-                case SIGFPE:  name = "SIGFPE (erro aritmético)"
-                case SIGBUS:  name = "SIGBUS (acesso inválido)"
-                case SIGTRAP: name = "SIGTRAP (Swift fatalError/precondition)"
-                default:      name = "Signal \(received)"
-                }
-                let symbols = Thread.callStackSymbols.prefix(15).joined(separator: "\n")
-                let report = "⚠️ \(name)\n\n\(symbols)"
-                UserDefaults.standard.set(report, forKey: "lastCrashReport")
-                signal(received, SIG_DFL)
-                raise(received)
-            }
         }
     }
 
