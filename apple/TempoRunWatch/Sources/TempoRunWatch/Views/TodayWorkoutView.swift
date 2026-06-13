@@ -102,6 +102,8 @@ private struct HomeWorkoutCard: View {
                     .padding(.vertical, 8)
                 } else {
                     Button(action: {
+                        CrashReporter.beginAttempt()
+                        CrashReporter.breadcrumb("UI: tocou Iniciar atividade (com plano)")
                         Task {
                             await workoutManager.requestAuthorization()
                             workoutManager.startWorkout()
@@ -210,6 +212,8 @@ private struct HomeNoPlanView: View {
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
             Button(action: {
+                CrashReporter.beginAttempt()
+                CrashReporter.breadcrumb("UI: tocou Iniciar atividade (sem plano)")
                 Task {
                     await workoutManager.requestAuthorization()
                     workoutManager.startWorkout()

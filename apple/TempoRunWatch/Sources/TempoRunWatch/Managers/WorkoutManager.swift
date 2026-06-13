@@ -247,8 +247,13 @@ class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Autorização
 
     func requestAuthorization() async {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
+        CrashReporter.breadcrumb("requestAuthorization: início")
+        guard HKHealthStore.isHealthDataAvailable() else {
+            CrashReporter.breadcrumb("requestAuthorization: HealthData indisponível")
+            return
+        }
         try? await healthStore.requestAuthorization(toShare: shareTypes, read: readTypes)
+        CrashReporter.breadcrumb("requestAuthorization: concluída")
         Task { await fetchRestingMetrics() }
     }
 
@@ -291,20 +296,27 @@ class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Controle de sessão
 
     func startWorkout() {
+        CrashReporter.breadcrumb("startWorkout: início")
         gpsAcquired = false
         Task {
-            guard HKHealthStore.isHealthDataAvailable() else { return }
+            guard HKHealthStore.isHealthDataAvailable() else {
+                CrashReporter.breadcrumb("startWorkout: HealthData indisponível — abortou")
+                return
+            }
 
             let config = HKWorkoutConfiguration()
             config.activityType = .running
             config.locationType = .outdoor
 
             do {
+                CrashReporter.breadcrumb("startWorkout: criando HKWorkoutSession")
                 let session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
+                CrashReporter.breadcrumb("startWorkout: associatedWorkoutBuilder")
                 let builder = session.associatedWorkoutBuilder()
                 // Delegates antes de dataSource para evitar NSException na inicialização
                 session.delegate = self
                 builder.delegate = self
+                CrashReporter.breadcrumb("startWorkout: criando HKLiveWorkoutDataSource")
                 builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
                                                               workoutConfiguration: config)
                 workoutSession = session
@@ -313,23 +325,32 @@ class WorkoutManager: NSObject, ObservableObject {
 
                 startDate = Date()
                 lastZoneTimestamp = startDate!
+                CrashReporter.breadcrumb("startWorkout: session.startActivity")
                 session.startActivity(with: startDate!)
 
                 // Transiciona a UI imediatamente — não espera beginCollection,
                 // que pode falhar se algum tipo HK não foi autorizado ainda.
+                CrashReporter.breadcrumb("startWorkout: state = .running")
                 state = .running
+                CrashReporter.breadcrumb("startWorkout: startTimer")
                 startTimer()
+                CrashReporter.breadcrumb("startWorkout: startUpdatingLocation")
                 locationManager.startUpdatingLocation()
+                CrashReporter.breadcrumb("startWorkout: VoiceCoach.announceStart")
                 VoiceCoach.shared.announceStart()
 
                 // beginCollection é não-fatal: sem ele os dados não são
                 // gravados no Health, mas a UI de corrida funciona normalmente.
+                CrashReporter.breadcrumb("startWorkout: beginCollection")
                 do {
                     try await builder.beginCollection(at: startDate!)
+                    CrashReporter.breadcrumb("startWorkout: beginCollection OK")
                 } catch {
+                    CrashReporter.breadcrumb("startWorkout: beginCollection FALHOU: \(error.localizedDescription)")
                     print("beginCollection falhou (dados não serão salvos): \(error)")
                 }
             } catch {
+                CrashReporter.breadcrumb("startWorkout: ERRO ao criar sessão: \(error.localizedDescription)")
                 print("Erro ao criar sessão: \(error)")
             }
         }

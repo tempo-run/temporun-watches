@@ -20,6 +20,7 @@ struct LiveMetricsView: View {
         .tabViewStyle(.page)
         .environmentObject(workoutManager)
         .environmentObject(planManager)
+        .onAppear { CrashReporter.breadcrumb("render: LiveMetricsView apareceu") }
     }
 }
 
@@ -119,6 +120,11 @@ private struct PrimaryPage: View {
                 .padding(.horizontal, 12).padding(.vertical, 4)
                 .background(statusColor.opacity(0.15))
                 .cornerRadius(20)
+        }
+        .onAppear {
+            CrashReporter.breadcrumb("render: PrimaryPage apareceu")
+            // Chegamos à tela de corrida — tentativa bem-sucedida.
+            CrashReporter.endAttempt()
         }
     }
 }

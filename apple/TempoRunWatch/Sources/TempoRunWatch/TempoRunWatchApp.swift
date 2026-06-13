@@ -9,6 +9,11 @@ struct TempoRunWatchApp: App {
     // Inicia NetworkMonitor na inicialização do app
     private let networkMonitor = NetworkMonitor.shared
 
+    init() {
+        // Captura crashes para diagnóstico em TestFlight (sem Mac/Xcode).
+        CrashReporter.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
