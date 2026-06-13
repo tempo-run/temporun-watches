@@ -235,6 +235,13 @@ class WorkoutManager: NSObject, ObservableObject {
         HKSeriesType.workoutRoute()
     ]
 
+    // HKUnit para VO2 máx: mL/(kg·min) — "ml/kg/min" é inválido no parser do HKUnit
+    private static let vo2MaxUnit: HKUnit = {
+        HKUnit.literUnit(with: .milli)
+            .unitDivided(by: HKUnit.gramUnit(with: .kilo)
+            .unitMultiplied(by: HKUnit.minute()))
+    }()
+
     // MARK: - Init
 
     override init() {
@@ -271,7 +278,7 @@ class WorkoutManager: NSObject, ObservableObject {
     private func fetchRestingMetrics() async {
         let rhr = await fetchLatest(.restingHeartRate, unit: .count().unitDivided(by: .minute()))
         let hrv = await fetchLatest(.heartRateVariabilitySDNN, unit: .secondUnit(with: .milli))
-        let vo2 = await fetchLatest(.vo2Max, unit: HKUnit(from: "ml/kg/min"))
+        let vo2 = await fetchLatest(.vo2Max, unit: Self.vo2MaxUnit)
 
         metrics.restingHeartRate = rhr
         metrics.heartRateVariability = hrv
@@ -582,7 +589,7 @@ class WorkoutManager: NSObject, ObservableObject {
                 .doubleValue(for: .count().unitDivided(by: .minute())) ?? metrics.restingHeartRate
 
         case .vo2Max:
-            let v = stats.mostRecentQuantity()?.doubleValue(for: HKUnit(from: "ml/kg/min")) ?? 0
+            let v = stats.mostRecentQuantity()?.doubleValue(for: Self.vo2MaxUnit) ?? 0
             if v > 0 {
                 metrics.vo2Max = v
                 metrics.racePredictions = RacePredictions(vo2Max: v)
