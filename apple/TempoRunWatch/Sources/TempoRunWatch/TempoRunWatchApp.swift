@@ -6,8 +6,10 @@ struct TempoRunWatchApp: App {
     @StateObject private var planManager   = TrainingPlanManager.shared
     @StateObject private var offlineQueue  = OfflineQueue.shared
 
-    // Inicia NetworkMonitor na inicialização do app
-    private let networkMonitor = NetworkMonitor.shared
+    private let networkMonitor   = NetworkMonitor.shared
+    // WatchSessionManager precisa ser iniciado no launch para receber
+    // credenciais e plano enviados pelo iPhone via WatchConnectivity.
+    private let sessionManager   = WatchSessionManager.shared
 
     init() {
         // Captura crashes para diagnóstico em TestFlight (sem Mac/Xcode).

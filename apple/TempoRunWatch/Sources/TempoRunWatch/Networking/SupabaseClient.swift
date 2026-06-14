@@ -7,18 +7,16 @@ import Foundation
 struct SupabaseConfig {
     static let appGroupID = "group.com.temporun.run"
 
-    static var url: String {
-        UserDefaults(suiteName: appGroupID)?.string(forKey: "supabaseUrl") ?? ""
+    // Usa App Group quando disponível, cai para .standard caso o watch
+    // não tenha a entitlement de App Group configurada no perfil.
+    static var defaults: UserDefaults {
+        UserDefaults(suiteName: appGroupID) ?? .standard
     }
-    static var anonKey: String {
-        UserDefaults(suiteName: appGroupID)?.string(forKey: "supabaseAnonKey") ?? ""
-    }
-    static var accessToken: String {
-        UserDefaults(suiteName: appGroupID)?.string(forKey: "supabaseAccessToken") ?? ""
-    }
-    static var userId: String {
-        UserDefaults(suiteName: appGroupID)?.string(forKey: "supabaseUserId") ?? ""
-    }
+
+    static var url: String          { defaults.string(forKey: "supabaseUrl")          ?? "" }
+    static var anonKey: String      { defaults.string(forKey: "supabaseAnonKey")      ?? "" }
+    static var accessToken: String  { defaults.string(forKey: "supabaseAccessToken")  ?? "" }
+    static var userId: String       { defaults.string(forKey: "supabaseUserId")       ?? "" }
 
     static var isConfigured: Bool {
         !url.isEmpty && !anonKey.isEmpty && !accessToken.isEmpty && !userId.isEmpty
