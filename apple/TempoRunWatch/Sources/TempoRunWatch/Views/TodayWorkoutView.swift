@@ -62,19 +62,19 @@ struct ActivitySelector: View {
                         Text(type.label)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                     }
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.45))
+                    .foregroundColor(isSelected ? .tempoCyan : .white.opacity(0.4))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 9)
                     .background(
-                        Group {
-                            if isSelected {
-                                LinearGradient.tempoPurpleCyan
-                            } else {
-                                Color.white.opacity(0.08)
-                            }
-                        }
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(isSelected ? Color.tempoCard : Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .strokeBorder(isSelected ? Color.tempoCyan.opacity(0.7)
+                                                             : Color.white.opacity(0.12),
+                                                  lineWidth: 1)
+                            )
                     )
-                    .cornerRadius(20)
                 }
                 .buttonStyle(.plain)
             }
@@ -119,46 +119,44 @@ private struct PlanCard: View {
     @EnvironmentObject var planManager: TrainingPlanManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Treino de hoje")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 3) {
+            Text("TREINO DE HOJE")
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundColor(.tempoCyan.opacity(0.7))
+                .kerning(1)
 
-            ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(LinearGradient.tempoGradient)
+            Text(workout.tipo)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.tempoCyan)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    if let obj = planManager.plan?.objetivo, !obj.isEmpty {
-                        Text(obj)
-                            .font(.system(size: 8, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white.opacity(0.9))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.white.opacity(0.2))
-                            .cornerRadius(8)
-                    }
-
-                    Text(workout.tipo)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-
-                    HStack(spacing: 4) {
-                        Text(String(format: "%.0f km", workout.distancia_km))
-                        Text("·")
-                        Text(workout.pace_alvo.replacingOccurrences(of: "/km", with: "") + "/km")
-                        if let wk = planManager.plan?.currentWeek {
-                            Text("·")
-                            Text("Sem \(wk.semana)/\(planManager.plan?.semanas.count ?? 0)")
-                        }
-                    }
-                    .font(.system(size: 9, design: .rounded))
-                    .foregroundColor(.white.opacity(0.85))
+            HStack(spacing: 4) {
+                Text(String(format: "%.0f km", workout.distancia_km))
+                Text("·")
+                Text(workout.pace_alvo.replacingOccurrences(of: "/km", with: "") + "/km")
+                if let wk = planManager.plan?.currentWeek {
+                    Text("·")
+                    Text("Sem \(wk.semana)/\(planManager.plan?.semanas.count ?? 0)")
                 }
-                .padding(10)
             }
-            .frame(minHeight: 70)
+            .font(.system(size: 9, design: .rounded))
+            .foregroundColor(.white.opacity(0.5))
+
+            if let obj = planManager.plan?.objetivo, !obj.isEmpty {
+                Text(obj)
+                    .font(.system(size: 8, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.45))
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.tempoCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color.tempoCyan.opacity(0.6), lineWidth: 1)
+                )
+        )
     }
 }
 
