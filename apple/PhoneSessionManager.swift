@@ -14,6 +14,7 @@ protocol PhoneSessionDelegate: AnyObject {
 
 // Estrutura mapeada para o schema da tabela `corridas` do Supabase
 struct CorridaFromWatch {
+    let tipo: String                   // "corrida" / "caminhada"
     let distancia_km: Double
     let duracao_seg: Int
     let pace_medio: Double             // seg/km
@@ -53,6 +54,7 @@ struct CorridaFromWatch {
     let source: String                 // "apple_watch"
 
     init(from payload: WorkoutPayload) {
+        tipo                      = payload.tipo ?? "corrida"
         distancia_km              = payload.distanceKm
         duracao_seg               = Int(payload.elapsedTime)
         pace_medio                = payload.averagePace
@@ -98,6 +100,7 @@ struct CorridaFromWatch {
     // Converte para dicionário pronto para inserir via Supabase JS client
     func toSupabaseDict() -> [String: Any] {
         [
+            "tipo": tipo,
             "distancia_km": distancia_km,
             "duracao_seg": duracao_seg,
             "pace_medio": pace_medio,

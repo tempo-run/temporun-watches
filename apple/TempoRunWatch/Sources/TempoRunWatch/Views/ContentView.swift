@@ -5,6 +5,8 @@ struct ContentView: View {
     @EnvironmentObject var planManager: TrainingPlanManager
     @State private var showPaceAlert = false
     @State private var showDiagnostics: Bool = CrashReporter.shouldShowDiagnostics()
+    // 0 = Ajustes (swipe direita), 1 = Home (centro), 2 = Plano (swipe esquerda)
+    @State private var homeTab = 1
 
     var body: some View {
         ZStack {
@@ -42,25 +44,12 @@ struct ContentView: View {
     private var mainContent: some View {
         switch workoutManager.state {
         case .idle:
-            TabView {
-                TodayWorkoutView()
-                    .tabItem { Label("Home", systemImage: "house.fill") }
-
-                PlanoView()
-                    .tabItem { Label("Plano", systemImage: "list.bullet.clipboard.fill") }
-
-                WidgetsView()
-                    .tabItem { Label("Widgets", systemImage: "rectangle.3.group.fill") }
-
-                BiomechanicsView()
-                    .tabItem { Label("Forma", systemImage: "figure.run") }
-
-                StandaloneStatusView()
-                    .tabItem { Label("Status", systemImage: "antenna.radiowaves.left.and.right") }
-
-                SettingsView()
-                    .tabItem { Label("Ajustes", systemImage: "slider.horizontal.3") }
+            TabView(selection: $homeTab) {
+                SettingsView().tag(0)        // swipe p/ direita
+                TodayWorkoutView().tag(1)    // centro
+                PlanoView().tag(2)           // swipe p/ esquerda
             }
+            .tabViewStyle(.page)
 
         case .running, .paused:
             LiveMetricsView()

@@ -8,6 +8,40 @@ enum WorkoutState {
     case idle, running, paused, ended
 }
 
+// MARK: - Tipo de atividade (corrida / caminhada)
+
+enum ActivityType: String, CaseIterable, Identifiable {
+    case corrida
+    case caminhada
+
+    var id: String { rawValue }
+
+    /// Tipo HealthKit usado na HKWorkoutConfiguration.
+    var hkType: HKWorkoutActivityType {
+        switch self {
+        case .corrida:   return .running
+        case .caminhada: return .walking
+        }
+    }
+
+    /// Valor gravado na coluna `tipo` da tabela corridas (idioma do usuário).
+    var dbValue: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .corrida:   return "Corrida"
+        case .caminhada: return "Caminhada"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .corrida:   return "figure.run"
+        case .caminhada: return "figure.walk"
+        }
+    }
+}
+
 // MARK: - Zonas de FC (modelo 5 zonas padrão)
 
 struct HeartRateZones {
@@ -143,6 +177,7 @@ struct LiveMetrics {
 class WorkoutManager: NSObject, ObservableObject {
 
     @Published var state: WorkoutState = .idle
+    @Published var activityType: ActivityType = .corrida
     @Published var elapsedTime: TimeInterval = 0
     @Published var metrics = LiveMetrics()
     @Published var lastMetrics = LiveMetrics()
@@ -313,7 +348,7 @@ class WorkoutManager: NSObject, ObservableObject {
             }
 
             let config = HKWorkoutConfiguration()
-            config.activityType = .running
+            config.activityType = activityType.hkType
             config.locationType = .outdoor
 
             do {
@@ -398,7 +433,8 @@ class WorkoutManager: NSObject, ObservableObject {
             metrics.averagePace = metrics.distanceKm > 0 ? elapsedTime / metrics.distanceKm : 0
 
             guard let start = startDate else { state = .ended; return }
-            let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime, startDate: start)
+            let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime,
+                                         startDate: start, tipo: activityType.dbValue)
 
             let iPhoneReachable = WCSession.default.activationState == .activated
                                   && WCSession.default.isReachable
@@ -421,6 +457,7 @@ class WorkoutManager: NSObject, ObservableObject {
     private func saveStandalone(payload: WorkoutPayload) async {
         // Monta o dicionário no formato da tabela corridas
         let dict: [String: Any] = [
+            "tipo":                      payload.tipo ?? "corrida",
             "distancia_km":              payload.distanceKm,
             "duracao_seg":               Int(payload.elapsedTime),
             "pace_medio":                payload.averagePace,
