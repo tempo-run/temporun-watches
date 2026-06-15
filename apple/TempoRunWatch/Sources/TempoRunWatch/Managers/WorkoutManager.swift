@@ -24,8 +24,8 @@ enum ActivityType: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Valor gravado na coluna `tipo` da tabela corridas (idioma do usuário).
-    var dbValue: String { rawValue }
+    /// Valor gravado na coluna `tipo` da tabela corridas — inicial maiúscula.
+    var dbValue: String { label }
 
     var label: String {
         switch self {
