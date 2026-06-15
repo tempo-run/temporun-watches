@@ -57,6 +57,9 @@ struct ContentView: View {
 
                 StandaloneStatusView()
                     .tabItem { Label("Status", systemImage: "antenna.radiowaves.left.and.right") }
+
+                SettingsView()
+                    .tabItem { Label("Ajustes", systemImage: "slider.horizontal.3") }
             }
 
         case .running, .paused:

@@ -1,450 +1,339 @@
 import SwiftUI
 
+// MARK: - Métricas personalizáveis
+
+enum WatchMetric: String, CaseIterable, Identifiable {
+    // Biomecânica
+    case cadence            = "cadence"
+    case power              = "power"
+    case groundContactTime  = "groundContactTime"
+    case strideLength       = "strideLength"
+    case verticalOscillation = "verticalOscillation"
+    // Cardíaco
+    case heartRate          = "heartRate"
+    case heartRateZone      = "heartRateZone"
+    case avgHeartRate       = "avgHeartRate"
+    case maxHeartRate       = "maxHeartRate"
+    case hrv                = "hrv"
+    // Energia / Altitude
+    case activeKcal         = "activeKcal"
+    case altitude           = "altitude"
+    case elevationGain      = "elevationGain"
+    // VO₂ / Forma
+    case vo2Max             = "vo2Max"
+    case physicalEffort     = "physicalEffort"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .cadence:              return "Cadência"
+        case .power:                return "Potência"
+        case .groundContactTime:    return "Contato solo"
+        case .strideLength:         return "Passada"
+        case .verticalOscillation:  return "Oscilação vert."
+        case .heartRate:            return "FC atual"
+        case .heartRateZone:        return "Zona FC"
+        case .avgHeartRate:         return "FC média"
+        case .maxHeartRate:         return "FC máxima"
+        case .hrv:                  return "HRV"
+        case .activeKcal:           return "Kcal ativas"
+        case .altitude:             return "Altitude"
+        case .elevationGain:        return "Ganho de alt."
+        case .vo2Max:               return "VO₂ máx"
+        case .physicalEffort:       return "Esforço"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .cadence:              return "shoeprints.fill"
+        case .power:                return "bolt.fill"
+        case .groundContactTime:    return "timer"
+        case .strideLength:         return "arrow.left.and.right"
+        case .verticalOscillation:  return "arrow.up.and.down"
+        case .heartRate:            return "heart.fill"
+        case .heartRateZone:        return "heart.circle.fill"
+        case .avgHeartRate:         return "heart.circle"
+        case .maxHeartRate:         return "arrow.up.heart"
+        case .hrv:                  return "waveform.path.ecg"
+        case .activeKcal:           return "flame.fill"
+        case .altitude:             return "location.fill"
+        case .elevationGain:        return "arrow.up.right"
+        case .vo2Max:               return "chart.bar.fill"
+        case .physicalEffort:       return "gauge.medium"
+        }
+    }
+
+    var accentColor: Color {
+        switch self {
+        case .cadence, .strideLength:   return .white
+        case .power:                    return .tempoOrange
+        case .groundContactTime:        return .white
+        case .verticalOscillation:      return .white
+        case .heartRate, .maxHeartRate: return .red
+        case .heartRateZone:            return .yellow
+        case .avgHeartRate:             return .red
+        case .hrv:                      return .tempoOrange
+        case .activeKcal:               return .tempoOrange
+        case .altitude, .elevationGain: return .green
+        case .vo2Max:                   return .tempoCyan
+        case .physicalEffort:           return .white
+        }
+    }
+
+    func value(from m: LiveMetrics) -> String {
+        switch self {
+        case .cadence:              return m.cadence > 0          ? "\(Int(m.cadence)) spm"          : "--"
+        case .power:                return m.runningPower > 0     ? "\(Int(m.runningPower)) W"        : "--"
+        case .groundContactTime:    return m.groundContactTime > 0 ? "\(Int(m.groundContactTime)) ms" : "--"
+        case .strideLength:         return m.strideLength > 0     ? String(format: "%.2f m", m.strideLength) : "--"
+        case .verticalOscillation:  return m.verticalOscillation > 0 ? String(format: "%.1f cm", m.verticalOscillation) : "--"
+        case .heartRate:            return m.heartRate > 0        ? "\(Int(m.heartRate)) bpm"        : "--"
+        case .heartRateZone:        return m.currentZone > 0      ? "Zona \(m.currentZone)"          : "--"
+        case .avgHeartRate:         return m.averageHeartRate > 0 ? "\(Int(m.averageHeartRate)) bpm" : "--"
+        case .maxHeartRate:         return m.maxHeartRate > 0     ? "\(Int(m.maxHeartRate)) bpm"     : "--"
+        case .hrv:                  return m.heartRateVariability > 0 ? String(format: "%.1f ms", m.heartRateVariability) : "--"
+        case .activeKcal:           return m.activeEnergyBurned > 0 ? "\(Int(m.activeEnergyBurned)) kcal" : "--"
+        case .altitude:             return String(format: "%.0f m", m.currentAltitude)
+        case .elevationGain:        return String(format: "+%.0f m", m.elevationGain)
+        case .vo2Max:               return m.vo2Max > 0           ? String(format: "%.1f", m.vo2Max) : "--"
+        case .physicalEffort:       return m.physicalEffort > 0   ? String(format: "%.1f MET", m.physicalEffort) : "--"
+        }
+    }
+}
+
+// MARK: - Preferências persistidas
+
+final class MetricPreferences: ObservableObject {
+    static let shared = MetricPreferences()
+    private let key = "selectedWatchMetrics"
+    static let defaultMetrics: [WatchMetric] = [.cadence, .heartRateZone, .power]
+    static let maxSlots = 3
+
+    @Published var selected: [WatchMetric] {
+        didSet { save() }
+    }
+
+    private init() {
+        if let raw = UserDefaults.standard.string(forKey: "selectedWatchMetrics") {
+            let parsed = raw.components(separatedBy: ",").compactMap { WatchMetric(rawValue: $0) }
+            selected = parsed.isEmpty ? Self.defaultMetrics : parsed
+        } else {
+            selected = Self.defaultMetrics
+        }
+    }
+
+    private func save() {
+        UserDefaults.standard.set(selected.map(\.rawValue).joined(separator: ","), forKey: key)
+    }
+}
+
+// MARK: - LiveMetricsView
+
 struct LiveMetricsView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @EnvironmentObject var planManager: TrainingPlanManager
+    @StateObject private var prefs = MetricPreferences.shared
 
     @State private var selection = 1
 
     var body: some View {
         TabView(selection: $selection) {
-            ControlsPage().tag(0)
-            PrimaryPage().tag(1)
-            BiomechanicsPage().tag(2)
-            EnergyPage().tag(3)
-            CardioPage().tag(4)
-            AltitudePage().tag(5)
-            SplitsPage().tag(6)
-            PredictionsPage().tag(7)
+            ControlsPage()
+                .tag(0)
+            PrimaryPage()
+                .tag(1)
         }
         .tabViewStyle(.page)
         .environmentObject(workoutManager)
         .environmentObject(planManager)
+        .environmentObject(prefs)
         .onAppear { CrashReporter.breadcrumb("render: LiveMetricsView apareceu") }
     }
 }
 
-// MARK: - Página 1: Live Run (redesenhada)
+// MARK: - Página principal
 
 private struct PrimaryPage: View {
     @EnvironmentObject var wm: WorkoutManager
-    @EnvironmentObject var planManager: TrainingPlanManager
-
-    private var paceStatus: PaceStatus {
-        guard let workout = planManager.todayWorkout,
-              wm.metrics.currentPace > 0 else { return .ok }
-        return workout.isPaceOnTarget(wm.metrics.currentPace)
-    }
-
-    private var statusLabel: String {
-        switch paceStatus {
-        case .ok:      return "Dentro do alvo"
-        case .tooFast: return "Muito rápido"
-        case .tooSlow: return "Muito lento"
-        }
-    }
-
-    private var statusColor: Color {
-        switch paceStatus {
-        case .ok:      return .tempoCyan
-        case .tooFast: return .yellow
-        case .tooSlow: return .red
-        }
-    }
+    @EnvironmentObject var prefs: MetricPreferences
 
     var body: some View {
-        VStack(spacing: 4) {
-            // Top bar: elapsed + GPS
-            HStack {
-                Text(wm.elapsedTime.formattedDuration)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white).monospacedDigit()
-                Spacer()
-                HStack(spacing: 3) {
-                    Circle()
-                        .fill(wm.gpsAcquired ? Color.tempoCyan : Color.orange)
-                        .frame(width: 5, height: 5)
-                    Text(wm.gpsAcquired ? "GPS" : "GPS...")
-                        .font(.system(size: 10))
-                        .foregroundColor(wm.gpsAcquired ? .tempoCyan : .orange)
+        ScrollView {
+            VStack(spacing: 0) {
+                // ── Brand bar ──────────────────────────────
+                HStack {
+                    Text("tempo")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
+                    + Text("run")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundColor(.tempoCyan)
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(wm.gpsAcquired ? Color.tempoCyan : Color.orange)
+                            .frame(width: 6, height: 6)
+                            .shadow(color: wm.gpsAcquired ? .tempoCyan : .orange, radius: 4)
+                        Text("GPS")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(wm.gpsAcquired ? .tempoCyan : .orange)
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
+
+                // ── Big distance ───────────────────────────
+                Text(String(format: "%.2f", wm.metrics.distanceKm))
+                    .font(.system(size: 64, weight: .black, design: .rounded))
+                    .foregroundColor(.white)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+
+                Text("KM")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.tempoCyan)
+                    .kerning(3)
+                    .padding(.bottom, 12)
+
+                // ── PACE + TEMPO pills ─────────────────────
+                HStack(spacing: 8) {
+                    StatPill(value: wm.metrics.currentPace.formattedPace, label: "PACE")
+                    StatPill(value: wm.elapsedTime.formattedDuration,     label: "TEMPO")
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 14)
+
+                // ── Métricas personalizáveis ───────────────
+                Divider()
+                    .background(Color.white.opacity(0.08))
+                    .padding(.horizontal, 10)
+
+                VStack(spacing: 6) {
+                    Text("MÉTRICAS")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.white.opacity(0.3))
+                        .kerning(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+
+                    ForEach(prefs.selected) { metric in
+                        MetricRow(metric: metric, metrics: wm.metrics)
+                    }
+                }
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 10)
-
-            // Live Run label
-            Text("LIVE RUN")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .foregroundColor(.tempoCyan)
-                .kerning(1.5)
-
-            // Big distance
-            Text(String(format: "%.2f", wm.metrics.distanceKm))
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-
-            Text("KM")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundColor(.gray)
-                .kerning(1)
-
-            // 2×2 metric grid
-            HStack(spacing: 6) {
-                LiveCell(value: wm.metrics.currentPace.formattedPace, label: "PACE ATUAL",
-                         color: .tempoPurple)
-                Divider().background(Color.white.opacity(0.1)).frame(height: 32)
-                LiveCell(value: "\(wm.metrics.heartRate, default: "%.0f")", label: "BPM")
-            }
-            .padding(.vertical, 4)
-            .background(Color.tempoCard)
-            .cornerRadius(10)
-            .padding(.horizontal, 6)
-
-            HStack(spacing: 6) {
-                LiveCell(value: "\(wm.metrics.cadence, default: "%.0f")", label: "CADÊNCIA")
-                Divider().background(Color.white.opacity(0.1)).frame(height: 32)
-                LiveCell(value: wm.metrics.currentZone > 0 ? "Z\(wm.metrics.currentZone)" : "--",
-                         label: "ZONA")
-            }
-            .padding(.vertical, 4)
-            .background(Color.tempoCard)
-            .cornerRadius(10)
-            .padding(.horizontal, 6)
-
-            // Status pill
-            Text(statusLabel)
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundColor(statusColor)
-                .padding(.horizontal, 12).padding(.vertical, 4)
-                .background(statusColor.opacity(0.15))
-                .cornerRadius(20)
         }
         .onAppear {
             CrashReporter.breadcrumb("render: PrimaryPage apareceu")
-            // Chegamos à tela de corrida — tentativa bem-sucedida.
             CrashReporter.endAttempt()
         }
     }
 }
 
-private struct LiveCell: View {
+private struct StatPill: View {
     let value: String
     let label: String
-    var color: Color = .white
 
     var body: some View {
-        VStack(spacing: 1) {
+        VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(color).monospacedDigit()
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .monospacedDigit()
             Text(label)
-                .font(.system(size: 7, weight: .semibold))
-                .foregroundColor(.gray)
-                .kerning(0.5)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundColor(.tempoCyan)
+                .kerning(1.5)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(red: 0.12, green: 0.08, blue: 0.28))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(Color(red: 0.48, green: 0.18, blue: 1.0).opacity(0.55), lineWidth: 1)
+                )
+        )
     }
 }
 
-// MARK: - Página 2: Biomecânica
-
-private struct BiomechanicsPage: View {
-    @EnvironmentObject var wm: WorkoutManager
-    private var m: LiveMetrics { wm.metrics }
+private struct MetricRow: View {
+    let metric: WatchMetric
+    let metrics: LiveMetrics
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 5) {
-                pageTitle("Biomecânica")
-                Row(icon: "bolt.fill",              label: "Potência",        value: "\(m.runningPower, default: "%.0f") W",  color: .tempoOrange)
-                Row(icon: "arrow.left.and.right",   label: "Passada",         value: "\(m.strideLength, default: "%.2f") m")
-                Row(icon: "timer",                  label: "Contato solo",    value: "\(m.groundContactTime, default: "%.0f") ms")
-                Row(icon: "arrow.up.and.down",      label: "Oscilação vert.", value: "\(m.verticalOscillation, default: "%.1f") cm")
-                Row(icon: "percent",                label: "Vert. Ratio",     value: "\(m.verticalRatio, default: "%.1f") %", color: .tempoOrange)
-                Row(icon: "shoeprints.fill",        label: "Cadência",        value: "\(m.cadence, default: "%.0f") spm")
-                Row(icon: "figure.run",             label: "Passos",          value: "\(m.stepCount, default: "%.0f")")
-                Row(icon: "gauge.medium",           label: "Esforço",         value: "\(m.physicalEffort, default: "%.1f") MET")
-                Row(icon: "speedometer",            label: "Velocidade",      value: "\(m.currentSpeed, default: "%.1f") m/s")
-            }
-            .padding(.horizontal, 6)
-        }
-    }
-}
-
-// MARK: - Página 3: Energia
-
-private struct EnergyPage: View {
-    @EnvironmentObject var wm: WorkoutManager
-    private var m: LiveMetrics { wm.metrics }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 5) {
-                pageTitle("Energia")
-                Row(icon: "flame.fill",   label: "Ativa",    value: "\(m.activeEnergyBurned, default: "%.0f") kcal", color: .tempoOrange)
-                Row(icon: "flame",        label: "Basal",    value: "\(m.basalEnergyBurned, default: "%.0f") kcal")
-                Row(icon: "sum",          label: "Total",    value: "\(m.totalEnergyBurned, default: "%.0f") kcal",   color: .yellow)
-                divider()
-                // Zonas de FC — tempo acumulado
-                pageTitle("Tempo em zonas")
-                ForEach(1...5, id: \.self) { z in
-                    ZoneTimeRow(zone: z, seconds: m.timeInZone[z])
-                }
-            }
-            .padding(.horizontal, 6)
-        }
-    }
-}
-
-// MARK: - Página 4: Cardio & Saúde
-
-private struct CardioPage: View {
-    @EnvironmentObject var wm: WorkoutManager
-    private var m: LiveMetrics { wm.metrics }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 5) {
-                pageTitle("Cardio & Saúde")
-                Row(icon: "heart.fill",         label: "FC atual",    value: "\(m.heartRate, default: "%.0f") bpm",         color: zoneColor(m.currentZone))
-                Row(icon: "heart.circle",       label: "FC média",    value: "\(m.averageHeartRate, default: "%.0f") bpm")
-                Row(icon: "arrow.down.heart",   label: "FC mín",      value: "\(m.minHeartRate == 999 ? 0 : m.minHeartRate, default: "%.0f") bpm", color: .blue)
-                Row(icon: "arrow.up.heart",     label: "FC máx",      value: "\(m.maxHeartRate, default: "%.0f") bpm",      color: .red)
-                Row(icon: "heart.text.square",  label: "FC repouso",  value: "\(m.restingHeartRate, default: "%.0f") bpm")
-                Row(icon: "waveform.path.ecg",  label: "HRV (SDNN)",  value: "\(m.heartRateVariability, default: "%.1f") ms", color: .tempoOrange)
-                Row(icon: "lungs.fill",         label: "SpO₂",        value: "\(m.oxygenSaturation, default: "%.0f") %",   color: .blue)
-                Row(icon: "wind",               label: "Respiração",   value: "\(m.respiratoryRate, default: "%.0f") r/min")
-                Row(icon: "chart.bar.fill",     label: "VO₂ máx",     value: "\(m.vo2Max, default: "%.1f") ml/kg", color: .green)
-            }
-            .padding(.horizontal, 6)
-        }
-    }
-}
-
-// MARK: - Página 5: Altitude / GPS
-
-private struct AltitudePage: View {
-    @EnvironmentObject var wm: WorkoutManager
-    private var m: LiveMetrics { wm.metrics }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 5) {
-                pageTitle("Altitude & GPS")
-                Row(icon: "location.fill",      label: "Altitude atual",  value: "\(m.currentAltitude, default: "%.0f") m",  color: .tempoOrange)
-                Row(icon: "arrow.up.right",     label: "Ganho elev.",     value: "+ \(m.elevationGain, default: "%.0f") m",  color: .green)
-                Row(icon: "arrow.down.right",   label: "Perda elev.",     value: "- \(m.elevationLoss, default: "%.0f") m",  color: .red)
-                Row(icon: "mountain.2.fill",    label: "Altitude máx",    value: "\(m.maxAltitude, default: "%.0f") m")
-                Row(icon: "arrow.down.to.line", label: "Altitude mín",    value: "\(m.minAltitude == 9999 ? 0 : m.minAltitude, default: "%.0f") m")
-                Row(icon: "stairs",             label: "Lances subidos",  value: "\(m.flightsClimbed, default: "%.0f")")
-            }
-            .padding(.horizontal, 6)
-        }
-    }
-}
-
-// MARK: - Página 6: Splits
-
-private struct SplitsPage: View {
-    @EnvironmentObject var wm: WorkoutManager
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 4) {
-                pageTitle("Splits")
-
-                if wm.metrics.splits.isEmpty {
-                    Text("Primeiro split\naos 1 km")
-                        .font(.system(size: 12, design: .rounded))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 20)
-                } else {
-                    // Cabeçalho
-                    HStack {
-                        Text("km").frame(width: 24, alignment: .leading)
-                        Text("pace").frame(maxWidth: .infinity, alignment: .center)
-                        Text("FC").frame(width: 40, alignment: .trailing)
-                    }
-                    .font(.system(size: 10)).foregroundColor(.gray)
-
-                    ForEach(wm.metrics.splits, id: \.km) { split in
-                        SplitRow(split: split, bestPace: wm.metrics.bestPace)
-                    }
-                }
-            }
-            .padding(.horizontal, 6)
-        }
-    }
-}
-
-private struct SplitRow: View {
-    let split: KmSplit
-    let bestPace: Double
-
-    var body: some View {
-        let isBest = split.pace == bestPace
-        HStack {
-            Text("\(split.km)")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundColor(.gray)
-                .frame(width: 24, alignment: .leading)
-
-            Text(split.pace.formattedPace)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(isBest ? .tempoOrange : .white)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .monospacedDigit()
-
-            Text(split.avgHeartRate > 0 ? "\(split.avgHeartRate, default: "%.0f")" : "--")
-                .font(.system(size: 12, design: .rounded))
-                .foregroundColor(.red)
-                .frame(width: 40, alignment: .trailing)
-                .monospacedDigit()
-        }
-        .padding(.vertical, 1)
-    }
-}
-
-// MARK: - Página 7: Predições de prova
-
-private struct PredictionsPage: View {
-    @EnvironmentObject var wm: WorkoutManager
-    private var p: RacePredictions { wm.metrics.racePredictions }
-
-    var body: some View {
-        VStack(spacing: 6) {
-            pageTitle("Predição de prova")
-
-            if wm.metrics.vo2Max == 0 {
-                Text("Disponível após\nleitura do VO₂ máx")
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 16)
-            } else {
-                VStack(spacing: 5) {
-                    PredRow(label: "5 km",        time: p.km5)
-                    PredRow(label: "10 km",       time: p.km10)
-                    PredRow(label: "Meia",        time: p.halfMarathon)
-                    PredRow(label: "Maratona",    time: p.marathon)
-                }
-                Text("Baseado no VO₂ máx · Daniels")
-                    .font(.system(size: 9)).foregroundColor(.gray)
-                    .padding(.top, 4)
-            }
-        }
-        .padding(.horizontal, 8)
-    }
-}
-
-private struct PredRow: View {
-    let label: String
-    let time: TimeInterval
-
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 12, design: .rounded)).foregroundColor(.gray)
+        HStack(spacing: 10) {
+            Image(systemName: metric.icon)
+                .font(.system(size: 12))
+                .foregroundColor(metric.accentColor)
+                .frame(width: 18)
+            Text(metric.displayName)
+                .font(.system(size: 11, design: .rounded))
+                .foregroundColor(.white.opacity(0.55))
             Spacer()
-            Text(time.formattedRaceTime)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(.tempoOrange).monospacedDigit()
+            Text(metric.value(from: metrics))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(metric.accentColor)
+                .monospacedDigit()
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .background(Color(red: 0.05, green: 0.09, blue: 0.19))
+        .cornerRadius(10)
+        .padding(.horizontal, 10)
     }
 }
 
-// MARK: - Página 8: Controles
+// MARK: - Página de controles (swipe esquerda)
 
 private struct ControlsPage: View {
     @EnvironmentObject var wm: WorkoutManager
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
+            Text("CONTROLES")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(.white.opacity(0.35))
+                .kerning(2)
+
             Button(action: { wm.togglePause() }) {
-                Label(wm.state == .paused ? "Continuar" : "Pausar",
-                      systemImage: wm.state == .paused ? "play.fill" : "pause.fill")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 10)
-                    .background(Color.gray.opacity(0.35)).cornerRadius(24)
-            }.buttonStyle(.plain)
+                Label(
+                    wm.state == .paused ? "Continuar" : "Pausar",
+                    systemImage: wm.state == .paused ? "play.fill" : "pause.fill"
+                )
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(Color.white.opacity(0.12))
+                .cornerRadius(26)
+            }
+            .buttonStyle(.plain)
 
             Button(action: { wm.endWorkout() }) {
                 Label("Encerrar", systemImage: "stop.fill")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 10)
-                    .background(LinearGradient.tempoPurpleCyan).cornerRadius(24)
-            }.buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(LinearGradient.tempoPurpleCyan)
+                    .cornerRadius(26)
+            }
+            .buttonStyle(.plain)
         }
-        .padding()
-    }
-}
-
-// MARK: - Subviews reutilizáveis
-
-private struct MetricCell: View {
-    let value: String; let unit: String; var color: Color = .white
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(value).font(.system(size: 19, weight: .bold, design: .rounded))
-                .foregroundColor(color).monospacedDigit()
-            Text(unit).font(.system(size: 10)).foregroundColor(.gray)
-        }.frame(maxWidth: .infinity)
-    }
-}
-
-private struct Row: View {
-    let icon: String; let label: String; let value: String; var color: Color = .white
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon).foregroundColor(color).frame(width: 16).font(.system(size: 12))
-            Text(label).font(.system(size: 11, design: .rounded)).foregroundColor(.gray)
-            Spacer()
-            Text(value).font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundColor(.white).monospacedDigit()
-        }
-    }
-}
-
-private struct ZoneBadge: View {
-    let zone: Int
-    var body: some View {
-        Text("Z\(zone)")
-            .font(.system(size: 10, weight: .bold)).foregroundColor(.black)
-            .padding(.horizontal, 5).padding(.vertical, 2)
-            .background(zoneColor(zone)).cornerRadius(8)
-    }
-}
-
-private struct ZoneTimeRow: View {
-    let zone: Int; let seconds: Double
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(zoneColor(zone)).frame(width: 8, height: 8)
-            Text("Z\(zone) · \(zoneName(zone))")
-                .font(.system(size: 11, design: .rounded)).foregroundColor(.gray)
-            Spacer()
-            Text(seconds.formattedDuration)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundColor(.white).monospacedDigit()
-        }
+        .padding(.horizontal, 14)
     }
 }
 
 // MARK: - Helpers
-
-private func pageTitle(_ t: String) -> some View {
-    Text(t).font(.system(size: 13, weight: .semibold, design: .rounded))
-        .foregroundColor(.tempoOrange).padding(.bottom, 2)
-}
-
-private func divider() -> some View {
-    Divider().background(Color.gray.opacity(0.3))
-}
 
 func zoneColor(_ zone: Int) -> Color {
     switch zone {
@@ -455,8 +344,4 @@ func zoneColor(_ zone: Int) -> Color {
     case 5: return .red
     default: return .gray
     }
-}
-
-private func zoneName(_ zone: Int) -> String {
-    ["—", "Recuperação", "Base aeróbica", "Tempo", "Limiar", "VO₂ máx"][zone]
 }
