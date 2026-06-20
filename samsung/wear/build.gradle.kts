@@ -90,3 +90,40 @@ dependencies {
     // Testes unitários (JVM — rodam sem relógio)
     testImplementation(libs.junit)
 }
+
+// ── Trava de regressão: proíbe Health Connect no :wear ───────────────────────
+// O relógio usa Health Services (androidx.health:health-services-client). NUNCA
+// adicionar androidx.health.connect:connect-client — ele declara ~40 permissões
+// android.permission.health.* no manifesto e reprova na Play por excesso de
+// permissões. Esta task quebra o build se o Health Connect aparecer no grafo
+// (direto ou transitivo).
+tasks.register("checkNoHealthConnect") {
+    group = "verification"
+    description = "Falha o build se androidx.health.connect entrar no grafo do :wear."
+    doLast {
+        val offenders = sortedSetOf<String>()
+        configurations
+            .filter { it.isCanBeResolved && it.name.endsWith("RuntimeClasspath") }
+            .forEach { config ->
+                runCatching {
+                    config.incoming.resolutionResult.allComponents.forEach { comp ->
+                        val mv = comp.moduleVersion
+                        if (mv != null && mv.group == "androidx.health.connect") {
+                            offenders.add("${mv.group}:${mv.name}:${mv.version}")
+                        }
+                    }
+                }
+            }
+        if (offenders.isNotEmpty()) {
+            throw GradleException(
+                "❌ Health Connect proibido no modulo :wear -> $offenders\n" +
+                "Use SOMENTE androidx.health:health-services-client (Health Services).\n" +
+                "O Health Connect injeta ~40 permissoes android.permission.health.* no " +
+                "manifesto e reprova na Google Play por excesso de permissoes."
+            )
+        }
+    }
+}
+// Roda em todo build (preBuild) e em ./gradlew check
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn("checkNoHealthConnect") }
+tasks.matching { it.name == "check" }.configureEach { dependsOn("checkNoHealthConnect") }
