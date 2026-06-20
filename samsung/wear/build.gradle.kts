@@ -32,8 +32,11 @@ android {
         applicationId = "com.temporun.run"
         minSdk = 30          // Wear OS 3 — mínimo para Health Services
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // Mesmo applicationId do celular => MESMO app na Play. O versionCode do
+        // wear precisa ser ÚNICO e maior que o último publicado. O celular usa a
+        // faixa 2026xxxx (próximo build dele = 20260641); o wear vai logo acima.
+        versionCode = 20260642
+        versionName = "1.0.41"
     }
 
     signingConfigs {
