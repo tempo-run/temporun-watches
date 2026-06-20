@@ -35,7 +35,12 @@ android {
         // Mesmo applicationId do celular => MESMO app na Play. O versionCode do
         // wear precisa ser ÚNICO e maior que o último publicado. O celular usa a
         // faixa 2026xxxx (próximo build dele = 20260641); o wear vai logo acima.
-        versionCode = 20260644
+        // A faixa Produção do Wear OS já tinha uma versão de teste antiga com
+        // versionCode 90000003. O código novo precisa ser MAIOR que ela, senão a
+        // Play barra ("usuários existentes não conseguem atualizar"). O relógio
+        // passa a viver na faixa 9000xxxx — separada do celular (2026xxxx), sem
+        // risco de colisão. As faixas são versionadas de forma independente.
+        versionCode = 90000004
         versionName = "1.0.41"
     }
 
