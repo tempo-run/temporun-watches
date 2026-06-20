@@ -13,6 +13,10 @@ build/
 *.aab
 *.keystore
 !debug.keystore
+*.jks
+
+# Assinatura de release — credenciais locais, NUNCA versionar
+keystore.properties
 
 # Log de build local
 /build_out.txt
