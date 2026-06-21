@@ -20,8 +20,18 @@ def F(size, bold=False):
         _cache[k] = ImageFont.truetype(FONT_B if bold else FONT_R, size)
     return _cache[k]
 
-ORANGE=(255,107,53); WHITE=(245,245,245); GRAY=(150,150,150)
-BLUE=(79,195,247); GREEN=(102,187,106); RED=(239,83,80); BLACK=(0,0,0); RING=(38,38,38)
+# Paleta = padrão do app Apple Watch (.tempoOrange + cores de sistema do SwiftUI,
+# valores dark do watchOS). Ver apple/.../Extensions.swift e zoneColor() em
+# LiveMetricsView.swift: Z1/FC mín=.blue, Z2/VO₂=.green, Z3=.yellow,
+# Z4=.tempoOrange, Z5/FC máx=.red; branco=.white, cinza=.gray (systemGray).
+ORANGE=(255,107,53)   # tempoOrange  #FF6B35
+WHITE =(255,255,255)  # .white
+GRAY  =(142,142,147)  # systemGray   #8E8E93
+BLUE  =(10,132,255)   # systemBlue   #0A84FF
+GREEN =(48,209,88)    # systemGreen  #30D158
+RED   =(255,69,58)    # systemRed    #FF453A
+YELLOW=(255,214,10)   # systemYellow #FFD60A
+BLACK =(0,0,0); RING=(44,44,46)
 
 def canvas():
     img = Image.new("RGB", (S, S), BLACK)
