@@ -13,26 +13,26 @@ adicione esta seção à descrição em cada idioma (Detalhes do app → Descri�
 
 ### pt-BR
 ```
-⌚ Wear OS (Galaxy Watch e compatíveis)
-Corra direto do relógio: GPS, FC com zonas, ritmo, splits, VO₂ máx e predição de provas. Plano sincronizado do celular.
-• Bloco (Tile): progresso da semana e próximo treino na Smart Stack.
-• Complicação: km da semana no mostrador e corrida com um toque.
+⌚ No Wear OS (Galaxy Watch e compatíveis)
+Treine corrida direto do relógio: GPS, FC com zonas, ritmo, cadência, splits, VO₂ máx e predição de provas. O plano é sincronizado do celular.
+• Bloco (Tile): adicione o TempoRun à Smart Stack para ver o progresso da semana e o próximo treino.
+• Complicação: coloque o TempoRun no mostrador para acompanhar os km da semana e iniciar a corrida com um toque.
 ```
 
 ### en-GB
 ```
-⌚ Wear OS (Galaxy Watch and compatible)
-Run straight from your watch: GPS, heart-rate zones, pace, splits, VO₂ max and race predictions. Training plan synced from the phone.
-• Tile: weekly progress and next workout on your Smart Stack.
-• Complication: weekly distance on your watch face, start a run with a tap.
+⌚ On Wear OS (Galaxy Watch and compatible)
+Train your runs straight from the watch: GPS, heart-rate zones, pace, cadence, splits, VO₂ max and race predictions. Your plan syncs from the phone.
+• Tile: add TempoRun to your Smart Stack to see your weekly progress and next workout.
+• Complication: put TempoRun on your watch face to track your weekly distance and start a run with a tap.
 ```
 
 ### es-419
 ```
-⌚ Wear OS (Galaxy Watch y compatibles)
-Corre directo desde el reloj: GPS, zonas de FC, ritmo, parciales, VO₂ máx y predicción de tiempos. Plan sincronizado del teléfono.
-• Mosaico (Tile): progreso semanal y próximo entrenamiento en tu Smart Stack.
-• Complicación: km de la semana en la esfera e inicia una carrera con un toque.
+⌚ En Wear OS (Galaxy Watch y compatibles)
+Entrena tus carreras directo desde el reloj: GPS, zonas de FC, ritmo, cadencia, parciales, VO₂ máx y predicción de tiempos. El plan se sincroniza desde el teléfono.
+• Mosaico (Tile): agrega TempoRun a tu Smart Stack para ver tu progreso semanal y el próximo entrenamiento.
+• Complicación: coloca TempoRun en la esfera del reloj para seguir tus km de la semana e iniciar una carrera con un toque.
 ```
 
 ---
