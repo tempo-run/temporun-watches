@@ -78,18 +78,21 @@ final class TrainingPlanManager: NSObject, ObservableObject {
         case .ok:
             if paceAlert != nil {
                 paceAlert = nil  // limpa alerta anterior
+                VoiceCoach.shared.onTargetCue()  // confirma retorno à zona
             }
         case .tooFast:
             let newAlert = PaceAlert(status: .tooFast, workout: workout)
             if paceAlert?.status != .tooFast {
                 paceAlert = newAlert
                 triggerHaptic(for: .tooFast)
+                VoiceCoach.shared.paceCue(.tooFast)
             }
         case .tooSlow:
             let newAlert = PaceAlert(status: .tooSlow, workout: workout)
             if paceAlert?.status != .tooSlow {
                 paceAlert = newAlert
                 triggerHaptic(for: .tooSlow)
+                VoiceCoach.shared.paceCue(.tooSlow)
             }
         }
     }

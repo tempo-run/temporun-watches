@@ -3,6 +3,10 @@ import WatchConnectivity
 
 // Serializa LiveMetrics + elapsed para envio ao iPhone via WCSession
 struct WorkoutPayload: Codable {
+    // Tipo de atividade ("corrida" / "caminhada"). Opcional p/ decodificar
+    // payloads antigos enfileirados antes deste campo existir.
+    let tipo: String?
+
     // Corrida
     let distanceKm: Double
     let elapsedTime: TimeInterval
@@ -48,7 +52,8 @@ struct WorkoutPayload: Codable {
     let startDate: Date
     let endDate: Date
 
-    init(metrics: LiveMetrics, elapsedTime: TimeInterval, startDate: Date) {
+    init(metrics: LiveMetrics, elapsedTime: TimeInterval, startDate: Date, tipo: String) {
+        self.tipo               = tipo
         self.distanceKm         = metrics.distanceKm
         self.elapsedTime        = elapsedTime
         self.averagePace        = metrics.averagePace

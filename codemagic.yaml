@@ -43,14 +43,18 @@ workflows:
           include: true
 
     environment:
+      # A Apple exige o SDK do iOS 26 (Xcode 26+) para uploads ao ASC.
+      # Antes pinavamos o 16 para fugir do exportArchive recusando app-store,
+      # mas agora empacotamos o IPA manualmente, entao o Xcode 26 e seguro.
       xcode: latest
       groups:
         - TEMPORUN-WATCH-SECRETS
       vars:
-        XCODE_SCHEME: TempoRunWatch
+        # Agora arquivamos o app iOS stub (contêiner), que embarca o watch app.
+        XCODE_SCHEME: TempoRunStub
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.temporun.run.watchkitapp
+        bundle_identifier: com.temporun.watch
 
     scripts:
       - name: Instalar XcodeGen
@@ -60,115 +64,293 @@ workflows:
         working_directory: apple
         script: xcodegen generate
 
+      - name: Definir build number (CFBundleVersion)
+        working_directory: apple
+        script: |
+          set -e
+          # A versao precisa ser maior que qualquer build ja enviado ao ASC.
+          # Usa o BUILD_NUMBER do Codemagic (auto-incrementa); se vazio ou
+          # invalido, cai para o epoch Unix (sempre crescente e < 2^32).
+          BUILD_NUM="${BUILD_NUMBER:-}"
+          case "$BUILD_NUM" in
+            ''|*[!0-9]*) BUILD_NUM=$(date +%s) ;;
+            *) [ "$BUILD_NUM" -lt 2 ] && BUILD_NUM=$(date +%s) || true ;;
+          esac
+          echo "CFBundleVersion = $BUILD_NUM"
+
+          for plist in Stub/Info.plist TempoRunWatch/Info.plist TempoRunWatch/WidgetExtension-Info.plist; do
+            if [ -f "$plist" ]; then
+              /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" "$plist" \
+                || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $BUILD_NUM" "$plist"
+              echo " - $plist => $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
+            else
+              echo "AVISO: $plist nao encontrado (xcodegen ainda nao gerou?)"
+            fi
+          done
+
       - name: Aplicar profiles no projeto
         working_directory: apple
         script: xcode-project use-profiles
 
-      - name: Build IPA (archive + export)
+      - name: Restaurar entitlements (use-profiles limpa o arquivo)
+        working_directory: apple
+        script: |
+          # xcode-project use-profiles apaga o conteudo do arquivo de entitlements.
+          # Reescrevemos aqui com os entitlements corretos antes do archive.
+          /usr/libexec/PlistBuddy \
+            -c "Clear dict" \
+            -c "Add :com.apple.developer.healthkit bool true" \
+            TempoRunWatch/TempoRunWatch.entitlements
+          echo "Entitlements restaurados:"
+          cat TempoRunWatch/TempoRunWatch.entitlements
+
+      - name: Diagnostico — entitlements dos profiles instalados
+        working_directory: apple
+        script: |
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          XCODE_PROFILES_HOME="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          echo "=== Entitlements COMPLETOS de cada profile instalado ==="
+          for profile in "$PROFILES_HOME"/*.mobileprovision "$XCODE_PROFILES_HOME"/*.mobileprovision; do
+            [ -f "$profile" ] || continue
+            security cms -D -i "$profile" > /tmp/prof.plist 2>/dev/null
+            NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/prof.plist 2>/dev/null)
+            echo "--- Profile: $NAME ---"
+            /usr/libexec/PlistBuddy -c "Print :Entitlements" /tmp/prof.plist 2>/dev/null || echo "(sem entitlements)"
+            echo ""
+          done
+          echo "=== Conteudo do arquivo de entitlements ==="
+          cat TempoRunWatch/TempoRunWatch.entitlements
+          echo ""
+          echo "=== CODE_SIGN_ENTITLEMENTS no pbxproj ==="
+          grep -n "CODE_SIGN_ENTITLEMENTS" TempoRunWatch.xcodeproj/project.pbxproj || echo "(nao encontrado)"
+
+      - name: Build IPA (archive + empacotar)
         working_directory: apple
         script: |
           set -e
 
-          # 1. Encontrar o profile de watchOS instalado pelo use-profiles
+          # 1. Mapear os tres profiles instalados (stub iOS, watch app, widget)
           PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
           XCODE_PROFILES_HOME="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-          SELECTED_PROFILE=""
-          SELECTED_PROFILE_NAME=""
-          BUNDLE_ID="com.temporun.run.watchkitapp"
 
-          echo "Buscando profiles para o bundle: $BUNDLE_ID..."
+          STUB_PROFILE_NAME=""
+          WATCH_PROFILE_NAME=""
+          WIDGET_PROFILE_NAME=""
+
+          echo "Buscando profiles instalados para os tres bundles..."
           for profile in "$PROFILES_HOME"/*.mobileprovision "$XCODE_PROFILES_HOME"/*.mobileprovision; do
             if [ -f "$profile" ]; then
-              security cms -D -i "$profile" > /tmp/profile_watch.plist
-              APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile_watch.plist 2>/dev/null || true)
-              
-              if [[ "$APP_IDENTIFIER" == *".$BUNDLE_ID" ]]; then
-                SELECTED_PROFILE="$profile"
-                SELECTED_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile_watch.plist)
-                break
+              security cms -D -i "$profile" > /tmp/profile_temp.plist
+              APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile_temp.plist 2>/dev/null || true)
+              PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile_temp.plist 2>/dev/null || true)
+              echo " - $APP_IDENTIFIER  =>  $PROFILE_NAME"
+
+              if [[ "$APP_IDENTIFIER" == *".com.temporun.watch.watchkitapp.watchkitextension" ]]; then
+                WIDGET_PROFILE_NAME="$PROFILE_NAME"
+              elif [[ "$APP_IDENTIFIER" == *".com.temporun.watch.watchkitapp" ]]; then
+                WATCH_PROFILE_NAME="$PROFILE_NAME"
+              elif [[ "$APP_IDENTIFIER" == *".com.temporun.watch" ]]; then
+                STUB_PROFILE_NAME="$PROFILE_NAME"
               fi
             fi
           done
 
-          if [ -z "$SELECTED_PROFILE_NAME" ]; then
-            echo "ERRO: Nenhum profile de assinatura encontrado para o bundle $BUNDLE_ID!"
+          if [ -z "$STUB_PROFILE_NAME" ]; then
+            echo "ERRO: Profile do iOS Stub (com.temporun.watch) nao encontrado!"
             exit 1
           fi
+          if [ -z "$WATCH_PROFILE_NAME" ]; then
+            echo "ERRO: Profile do Watch App (com.temporun.watch.watchkitapp) nao encontrado!"
+            exit 1
+          fi
+          if [ -z "$WIDGET_PROFILE_NAME" ]; then
+            echo "ERRO: Profile do Widget (com.temporun.watch.watchkitapp.watchkitextension) nao encontrado!"
+            exit 1
+          fi
+          echo "Stub:   $STUB_PROFILE_NAME"
+          echo "Watch:  $WATCH_PROFILE_NAME"
+          echo "Widget: $WIDGET_PROFILE_NAME"
 
-          echo "Profile de watchOS encontrado: $SELECTED_PROFILE_NAME"
+          export STUB_PROFILE_NAME WATCH_PROFILE_NAME WIDGET_PROFILE_NAME
 
-          # 2. Injetar a assinatura manual no project.pbxproj gerado pelo XcodeGen
-          export SELECTED_PROFILE_NAME
-          export BUNDLE_ID
+          # 2. Injetar perfis especificos por bundle id no pbxproj
           ruby -e '
             project_file = File.join("TempoRunWatch.xcodeproj", "project.pbxproj")
-            profile_name = ENV.fetch("SELECTED_PROFILE_NAME")
-            bundle_id = ENV.fetch("BUNDLE_ID")
+            stub_profile = ENV.fetch("STUB_PROFILE_NAME")
+            watch_profile = ENV.fetch("WATCH_PROFILE_NAME")
+            widget_profile = ENV.fetch("WIDGET_PROFILE_NAME")
             team_id = "N48XV6SR5A"
-            text = File.read(project_file)
 
-            # Forçar manual signing e atribuir o profile correto
-            text = text.gsub(/CODE_SIGN_STYLE = [^;]+;/, "CODE_SIGN_STYLE = Manual;")
-            text = text.gsub(/DEVELOPMENT_TEAM = [^;]+;/, "DEVELOPMENT_TEAM = #{team_id};")
-            text = text.gsub(/CODE_SIGN_IDENTITY = [^;]+;/, "CODE_SIGN_IDENTITY = \"Apple Distribution\";")
-            text = text.gsub(/PROVISIONING_PROFILE_SPECIFIER = [^;]+;/, "PROVISIONING_PROFILE_SPECIFIER = \"#{profile_name}\";")
+            profiles = {
+              "com.temporun.watch" => stub_profile,
+              "com.temporun.watch.watchkitapp" => watch_profile,
+              "com.temporun.watch.watchkitapp.watchkitextension" => widget_profile,
+            }
 
-            unless text.include?("DEVELOPMENT_TEAM = #{team_id};")
-              text = text.gsub(/(CODE_SIGN_STYLE = Manual;\n)/, "\\1\t\t\t\tDEVELOPMENT_TEAM = #{team_id};\n")
+            lines = File.readlines(project_file)
+            new_lines = []
+            in_build_configuration = false
+            config_block = []
+
+            lines.each do |line|
+              if line =~ /buildSettings = \{/
+                in_build_configuration = true
+                config_block = [line]
+              elsif in_build_configuration
+                config_block << line
+                if line =~ /\};/
+                  in_build_configuration = false
+                  block_text = config_block.join
+
+                  if block_text =~ /PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);/
+                    bundle_id = $1.strip.gsub(/[^a-zA-Z0-9.-]/, "")
+                    profile = profiles[bundle_id]
+
+                    block_text.gsub!(/CODE_SIGN_STYLE = [^;]+;/, "CODE_SIGN_STYLE = Manual;")
+                    block_text.gsub!(/DEVELOPMENT_TEAM = [^;]+;/, "DEVELOPMENT_TEAM = #{team_id};")
+                    block_text.gsub!(/CODE_SIGN_IDENTITY = [^;]+;/, "CODE_SIGN_IDENTITY = \"Apple Distribution\";")
+
+                    if profile
+                      if block_text.include?("PROVISIONING_PROFILE_SPECIFIER")
+                        block_text.gsub!(/PROVISIONING_PROFILE_SPECIFIER = [^;]+;/, "PROVISIONING_PROFILE_SPECIFIER = \"#{profile}\";")
+                      else
+                        block_text.gsub!(/(PRODUCT_BUNDLE_IDENTIFIER = [^;]+;\n)/, "\\1\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{profile}\";\n")
+                      end
+                    end
+                  end
+                  new_lines << block_text
+                end
+              else
+                new_lines << line
+              end
             end
-
-            unless text.include?("PROVISIONING_PROFILE_SPECIFIER = \"#{profile_name}\";")
-              text = text.gsub(/(PRODUCT_BUNDLE_IDENTIFIER = #{Regexp.escape(bundle_id)};\n)/, "\\1\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{profile_name}\";\n")
-            end
-
-            File.write(project_file, text)
+            File.write(project_file, new_lines.join)
           '
 
-          # 3. Gerar o ExportOptions.plist específico para o Apple Watch
-          EXPORT_OPTIONS_PLIST="/tmp/temporun-watch-export-options.plist"
-          cat > "$EXPORT_OPTIONS_PLIST" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>teamID</key>
-            <string>N48XV6SR5A</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.temporun.run.watchkitapp</key>
-              <string>${SELECTED_PROFILE_NAME}</string>
-            </dict>
-            <key>stripSwiftSymbols</key>
-            <true/>
-            <key>uploadSymbols</key>
-            <true/>
-          </dict>
-          </plist>
-          PLIST
-
-          # 4. Arquivar para watchOS (usando o SDK e destination corretos)
-          echo "Arquivando app watchOS..."
+          # 3. Arquivar o app iOS (que embarca o watch app + widget)
+          echo "Arquivando app iOS (contendo o watch app)..."
           xcodebuild \
             -project TempoRunWatch.xcodeproj \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
-            -sdk watchos \
-            -destination "generic/platform=watchOS" \
-            -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
+            -destination "generic/platform=iOS" \
+            -archivePath build/ios/xcarchive/TempoRunStub.xcarchive \
             archive \
             COMPILER_INDEX_STORE_ENABLE=NO \
             DEVELOPMENT_TEAM=N48XV6SR5A \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution"
 
-          # 5. Exportar o IPA
-          echo "Exportando IPA para TestFlight..."
-          xcodebuild \
-            -exportArchive \
-            -archivePath build/ios/xcarchive/TempoRunWatch.xcarchive \
-            -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
-            -exportPath build/ios/ipa
+          # 3b. Force-resign watch app com entitlements corretos (HealthKit)
+          echo "=== Re-assinando watch app com entitlements de HealthKit ==="
+          WATCH_APP_PATH=$(find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "TempoRunWatch.app" | grep -v "\.dSYM" | head -1)
+          STUB_APP_PATH=$(ls -d "build/ios/xcarchive/TempoRunStub.xcarchive/Products/Applications"/*.app 2>/dev/null | head -1)
+
+          if [ -n "$WATCH_APP_PATH" ]; then
+            SIGN_ID=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -1 | awk '{print $2}')
+            echo "Identidade: $SIGN_ID"
+            echo "Watch app: $WATCH_APP_PATH"
+
+            # Criar entitlements completos para o watch app via PlistBuddy
+            /usr/libexec/PlistBuddy -c "Clear dict" /tmp/watch_entitlements.plist 2>/dev/null || true
+            /usr/libexec/PlistBuddy \
+              -c "Add :application-identifier string N48XV6SR5A.com.temporun.watch.watchkitapp" \
+              -c "Add :com.apple.developer.team-identifier string N48XV6SR5A" \
+              -c "Add :com.apple.developer.healthkit bool true" \
+              -c "Add :get-task-allow bool false" \
+              /tmp/watch_entitlements.plist
+            echo "Entitlements criados:"; plutil -p /tmp/watch_entitlements.plist || true
+
+            # Re-assinar widget extension primeiro (nested mais profundo)
+            WIDGET_APP=$(find "$WATCH_APP_PATH" -name "*.appex" | head -1)
+            if [ -n "$WIDGET_APP" ]; then
+              echo "Re-assinando widget: $WIDGET_APP"
+              codesign --force --sign "$SIGN_ID" \
+                --preserve-metadata=identifier,entitlements,resource-rules,requirements \
+                "$WIDGET_APP" || true
+            fi
+
+            # Re-assinar o watch app com HealthKit
+            codesign --force --sign "$SIGN_ID" \
+              --entitlements /tmp/watch_entitlements.plist \
+              "$WATCH_APP_PATH"
+            echo "Watch app re-assinado com HealthKit."
+
+            # Re-assinar stub iOS para refletir a mudanca no watch app
+            if [ -n "$STUB_APP_PATH" ]; then
+              echo "Re-assinando stub iOS: $STUB_APP_PATH"
+              STUB_ENT_TMP=/tmp/stub_ent_current.plist
+              codesign -d --entitlements :- "$STUB_APP_PATH" 2>/dev/null > "$STUB_ENT_TMP" || true
+              codesign --force --sign "$SIGN_ID" \
+                --entitlements "$STUB_ENT_TMP" \
+                "$STUB_APP_PATH"
+              echo "Stub re-assinado."
+            fi
+          else
+            echo "WATCH APP NAO ENCONTRADO para re-assinar!"
+            find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "*.app" || true
+          fi
+
+          # 3c. Verificar entitlements apos re-assinatura
+          echo "=== Entitlements do Watch App apos re-assinatura ==="
+          if [ -n "$WATCH_APP_PATH" ]; then
+            codesign -d --entitlements :- "$WATCH_APP_PATH" 2>/dev/null | plutil -p - 2>/dev/null || true
+          fi
+
+          # 4. Empacotar o IPA manualmente a partir do .xcarchive.
+          #    O `xcodebuild -exportArchive` falha na imagem do Codemagic com
+          #    "IDEDistributionMethodManager: Unknown Distribution Error" — o
+          #    framework de distribuicao do Xcode nao carrega nenhum metodo
+          #    ({} vazio), entao recusa app-store / app-store-connect.
+          #    Como o archive ja foi assinado com "Apple Distribution" + os
+          #    profiles de distribuicao, montamos o IPA no formato canonico
+          #    Payload/ (sem re-assinar) e o publishing faz o upload via API key.
+          #    Deploy targets iOS 17 / watchOS 10 tem Swift na propria OS, logo
+          #    nao e preciso pasta SwiftSupport.
+          echo "Empacotando IPA manualmente a partir do archive..."
+          ARCHIVE_APPS="build/ios/xcarchive/TempoRunStub.xcarchive/Products/Applications"
+          APP_PATH=$(ls -d "$ARCHIVE_APPS"/*.app 2>/dev/null | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERRO: nenhum .app encontrado em $ARCHIVE_APPS"
+            ls -la "$ARCHIVE_APPS" || true
+            exit 1
+          fi
+          echo "App principal: $APP_PATH"
+          echo "Conteudo embarcado:"
+          ls -la "$APP_PATH/Watch" 2>/dev/null || echo " (sem pasta Watch?)"
+
+          rm -rf build/ios/ipa
+          mkdir -p build/ios/ipa/Payload
+          cp -R "$APP_PATH" build/ios/ipa/Payload/
+
+          ( cd build/ios/ipa && zip -qry TempoRunStub.ipa Payload && rm -rf Payload )
+
+          echo "=== IPA empacotado ==="
+          ls -la build/ios/ipa
+
+          # Verifica entitlements assinados (diagnostico)
+          echo "=== Entitlements do iOS Stub ==="
+          codesign -d --entitlements :- "$APP_PATH" 2>/dev/null | plutil -p - 2>/dev/null || \
+            codesign -d --entitlements - "$APP_PATH" 2>&1 | head -n 40 || true
+
+          WATCH_APP=$(find "build/ios/xcarchive/TempoRunStub.xcarchive" -name "TempoRunWatch.app" | head -1)
+          if [ -n "$WATCH_APP" ]; then
+            echo "=== Entitlements do Watch App ($WATCH_APP) ==="
+            codesign -d --entitlements :- "$WATCH_APP" 2>/dev/null | plutil -p - 2>/dev/null || \
+              codesign -d --entitlements - "$WATCH_APP" 2>&1 | head -n 40 || true
+            echo "=== Provisioning profile embarcado no Watch App ==="
+            security cms -D -i "$WATCH_APP/embedded.mobileprovision" 2>/dev/null | \
+              /usr/libexec/PlistBuddy -c "Print :Entitlements" /dev/stdin 2>/dev/null || true
+          fi
+
+    artifacts:
+      - apple/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - apple/**/*.dSYM.zip
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TempoRun Watch — Preview das telas</title>
+<style>
+  :root{
+    --purple:#7B2DFF; --magenta:#C43BFF; --blue:#2F6BFF; --cyan:#22D8FF;
+    --bg:#05060d; --card:#0d1730; --muted:rgba(255,255,255,.55);
+    --grad:linear-gradient(135deg,var(--purple),var(--magenta),var(--blue),var(--cyan));
+    --grad2:linear-gradient(90deg,var(--purple),var(--cyan));
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(123,45,255,.18), transparent 60%),
+      radial-gradient(900px 500px at 90% 10%, rgba(34,216,255,.12), transparent 60%),
+      var(--bg);
+    color:#fff;font-family:-apple-system,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;
+    min-height:100vh;padding:40px 24px 80px;
+  }
+  .head{max-width:1100px;margin:0 auto 34px}
+  .head h1{font-size:34px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px}
+  .head p{color:var(--muted);font-size:14px;margin-top:8px;max-width:620px;line-height:1.5}
+  .grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:34px}
+  .item{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .label{font-size:13px;font-weight:600;color:var(--muted)}
+  .label b{color:#fff}
+
+  /* Watch frame */
+  .watch{
+    width:198px;height:240px;border-radius:46px;
+    background:#000;
+    border:6px solid #1a1a1c;
+    box-shadow:0 0 0 2px #000, 0 26px 50px rgba(0,0,0,.6), inset 0 0 30px rgba(0,0,0,.8);
+    padding:14px 12px;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;
+  }
+  .crown{position:absolute;right:-9px;top:78px;width:6px;height:42px;border-radius:4px;background:#2a2a2c}
+  .btn-side{position:absolute;right:-7px;top:134px;width:5px;height:30px;border-radius:4px;background:#222}
+  .screen{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+  /* shared atoms */
+  .eyebrow{font-size:8px;font-weight:800;letter-spacing:1.5px;color:var(--cyan)}
+  .title{font-size:15px;font-weight:800;margin-top:2px}
+  .desc{font-size:9px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .pill{display:inline-block;font-size:9px;font-weight:600;padding:3px 11px;border-radius:20px}
+  .pill.cyan{color:var(--cyan);background:rgba(34,216,255,.15)}
+  .btn{margin-top:auto;text-align:center;font-size:12px;font-weight:800;color:#fff;padding:8px;border-radius:22px;background:var(--grad2)}
+  .card{background:var(--card);border-radius:12px}
+
+  /* GPS notice */
+  .gps-notice{background:rgba(34,216,255,.12);border-radius:12px;padding:7px;margin-top:7px}
+  .gps-row{font-size:8.5px;color:rgba(255,255,255,.85)}
+  .gps-btn{margin-top:5px;text-align:center;font-size:9px;font-weight:700;color:#fff;padding:5px;border-radius:13px;background:rgba(34,216,255,.25)}
+
+  /* Home gradient card */
+  .gradcard{background:var(--grad);border-radius:14px;padding:9px;margin-top:8px}
+  .gradcard .tag{display:inline-block;font-size:8px;font-weight:700;padding:2px 6px;border-radius:8px;background:rgba(255,255,255,.22)}
+  .gradcard .wname{font-size:13px;font-weight:800;margin-top:3px}
+  .gradcard .wmeta{font-size:9px;color:rgba(255,255,255,.9);margin-top:2px}
+
+  /* Live run */
+  .topbar{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+  .gps{color:var(--cyan);display:flex;gap:4px;align-items:center;font-size:9px}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);display:inline-block}
+  .bignum{font-size:44px;font-weight:800;text-align:center;line-height:1;margin-top:4px}
+  .kmlabel{font-size:9px;font-weight:600;color:#8a8a8a;text-align:center;letter-spacing:1px;margin-top:2px}
+  .grid2{display:flex;align-items:center;background:var(--card);border-radius:10px;padding:6px 0;margin-top:6px}
+  .grid2 .cell{flex:1;text-align:center}
+  .grid2 .v{font-size:17px;font-weight:800}
+  .grid2 .l{font-size:7px;font-weight:600;color:#8a8a8a;letter-spacing:.5px;margin-top:1px}
+  .vsep{width:1px;height:30px;background:rgba(255,255,255,.1)}
+
+  /* Plano */
+  .bubbles{display:flex;gap:7px;margin-top:8px;overflow:hidden}
+  .bub{display:flex;flex-direction:column;align-items:center;gap:3px}
+  .bub .d{font-size:8px;font-weight:600;color:#8a8a8a}
+  .bub .d.on{color:#fff}
+  .bub .c{width:28px;height:28px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#8a8a8a}
+  .bub .c.on{background:var(--grad2);color:#fff}
+  .row{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:10px;margin-top:4px}
+  .row.today{background:var(--card)}
+  .row .ic{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0}
+  .row .rt{font-size:10px;font-weight:600}
+  .row .rs{font-size:8px;color:#8a8a8a}
+
+  /* Resumo */
+  .hero-ic{width:42px;height:42px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:20px}
+  .statrow{display:flex;background:var(--card);border-radius:12px;padding:7px 0;margin-top:8px}
+  .statrow.grad{background:var(--grad);padding:9px 0;border-radius:14px}
+  .statrow .s{flex:1;text-align:center}
+  .statrow .sv{font-size:17px;font-weight:800}
+  .statrow .sl{font-size:7px;font-weight:600;color:rgba(255,255,255,.7);letter-spacing:.5px;margin-top:2px}
+  .secrow{display:flex;justify-content:space-between;font-size:10px;margin-top:5px}
+  .secrow .k{color:#8a8a8a}
+  .sectitle{font-size:9px;font-weight:600;color:var(--cyan);margin-top:8px}
+
+  /* Widgets */
+  .wgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .wcard{background:var(--card);border-radius:12px;padding:9px}
+  .wcard .h{font-size:8px;font-weight:800;color:var(--cyan);letter-spacing:.8px}
+  .wcard .v{font-size:18px;font-weight:800;margin-top:3px}
+  .wcard .s{font-size:9px;color:var(--muted);margin-top:1px}
+
+  /* Biomec */
+  .score{width:72px;height:72px;margin:8px auto 0;position:relative}
+  .score svg{transform:rotate(-90deg)}
+  .score .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .score .n{font-size:21px;font-weight:800}
+  .score .s{font-size:8px;color:#8a8a8a}
+  .bar{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .bar .bl{font-size:9px;color:rgba(255,255,255,.7);width:48px}
+  .bar .track{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+  .bar .fill{height:100%;border-radius:3px;background:var(--grad2)}
+  .bar .bv{font-size:9px;font-weight:700;width:34px;text-align:right}
+
+  .scroll-mini{overflow:hidden}
+  .footer{max-width:1100px;margin:50px auto 0;color:var(--muted);font-size:12px;line-height:1.6}
+  .footer code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;color:var(--cyan)}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>TempoRun Watch</h1>
+    <p>Preview navegável das telas SwiftUI do Apple Watch. Reproduz fielmente o código (cores, layout e textos) — fundo midnight, cards navy, gradiente roxo→cyan e a identidade TempoRun.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- HOME -->
+    <div class="item">
+      <div class="watch"><div class="crown"></div><div class="btn-side"></div>
+        <div class="screen">
+          <div class="eyebrow">TEMPORUN</div>
+          <div class="title">Treino de hoje</div>
+          <div class="desc">Longão lento para construir resistência sem acumular fadiga.</div>
+          <div class="gps-notice">
+            <div class="gps-row">📍 Ative o GPS para rastrear sua corrida</div>
+            <div class="gps-btn">Ativar GPS</div>
+          </div>
+          <div class="gradcard">
+            <span class="tag">Melhorar VO₂max</span>
+            <div class="wname">Longão Lento</div>
+            <div class="wmeta">11 km · 6:30–7:00/km · Sem 1/8</div>
+          </div>
+          <div class="btn">Iniciar corrida</div>
+        </div>
+      </div>
+      <div class="label"><b>Home</b> · TodayWorkoutView</div>
+    </div>
+
+    <!-- PLANO -->
+    <div class="item">
+      <div class="watch"><div class="crown"></div><div class="btn-side"></div>
+        <div class="screen scroll-mini">
+          <div class="eyebrow">TRAINING</div>
+          <div class="title">Semana 1/8</div>
+          <div class="desc">Base aeróbica · 44 km planejados</div>
+          <div class="bubbles">
+            <div class="bub"><span class="d">Seg</span><span class="c">Off</span></div>
+            <div class="bub"><span class="d on">Ter</span><span class="c on">8k</span></div>
+            <div class="bub"><span class="d">Qua</span><span class="c">6k</span></div>
+            <div class="bub"><span class="d">Qui</span><span class="c">Off</span></div>
+            <div class="bub"><span class="d">Dom</span><span class="c">11k</span></div>
+          </div>
+          <div class="row today">
+            <span class="ic" style="background:rgba(123,45,255,.2);color:var(--purple)">M</span>
+            <div><div class="rt">Rodagem Moderada</div><div class="rs">7.6 km · 6:20–6:45</div></div>
+          </div>
+          <div class="row">
+            <span class="ic" style="background:rgba(196,59,255,.2);color:var(--magenta)">I</span>
+            <div><div class="rt" style="color:var(--muted)">Intervalado</div><div class="rs">6.8 km · 5:00–5:15</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="label"><b>Plano</b> · PlanoView</div>
+    </div>
+
+    <!-- LIVE RUN -->
+    <div class="item">
+      <div class="watch"><div class="crown"></div><div class="btn-side"></div>
+        <div class="screen">
+          <div class="topbar"><span>00:42:18</span><span class="gps"><span class="dot"></span>GPS</span></div>
+          <div class="eyebrow" style="text-align:center;margin-top:4px">LIVE RUN</div>
+          <div class="bignum">7.24</div>
+          <div class="kmlabel">KM</div>
+          <div class="grid2">
+            <div class="cell"><div class="v" style="color:var(--purple)">5:52</div><div class="l">PACE ATUAL</div></div>
+            <div class="vsep"></div>
+            <div class="cell"><div class="v">148</div><div class="l">BPM</div></div>
+          </div>
+          <div class="grid2">
+            <div class="cell"><div class="v">172</div><div class="l">CADÊNCIA</div></div>
+            <div class="vsep"></div>
+            <div class="cell"><div class="v">Z2</div><div class="l">ZONA</div></div>
+          </div>
+          <div style="text-align:center;margin-top:7px"><span class="pill cyan">Dentro do alvo</span></div>
+        </div>
+      </div>
+      <div class="label"><b>Live Run</b> · LiveMetricsView</div>
+    </div>
+
+    <!-- RESUMO -->
+    <div class="item">
+      <div class="watch"><div class="crown"></div><div class="btn-side"></div>
+        <div class="screen scroll-mini">
+          <div class="hero-ic">⚡</div>
+          <div class="eyebrow" style="text-align:center;margin-top:5px">RUN COMPLETE</div>
+          <div class="title" style="text-align:center">Boa corrida!</div>
+          <div class="desc" style="text-align:center">Você manteve consistência e fechou dentro da zona.</div>
+          <div class="statrow grad">
+            <div class="s"><div class="sv">11.0</div><div class="sl">KM</div></div>
+            <div class="s"><div class="sv">42:18</div><div class="sl">TEMPO</div></div>
+            <div class="s"><div class="sv">6:42</div><div class="sl">PACE</div></div>
+          </div>
+          <div style="text-align:center;margin-top:8px"><span class="pill cyan">Streak 4 dias</span></div>
+          <div class="sectitle">Cardio</div>
+          <div class="secrow"><span class="k">FC média</span><span>152 bpm</span></div>
+          <div class="secrow"><span class="k">VO₂ máx</span><span style="color:var(--cyan)">54 ml/kg</span></div>
+        </div>
+      </div>
+      <div class="label"><b>Resumo</b> · SummaryView</div>
+    </div>
+
+    <!-- WIDGETS -->
+    <div class="item">
+      <div class="watch"><div class="crown"></div><div class="btn-side"></div>
+        <div class="screen">
+          <div class="eyebrow">SMART STACK</div>
+          <div class="title">Atalhos rápidos</div>
+          <div class="wgrid">
+            <div class="wcard"><div class="h">SEMANA</div><div class="v">21/44</div><div class="s">km</div></div>
+            <div class="wcard"><div class="h">PRÓXIMO</div><div class="v">8k</div><div class="s">easy run</div></div>
+            <div class="wcard"><div class="h">STREAK</div><div class="v">4</div><div class="s">dias</div></div>
+            <div class="wcard"><div class="h">XP</div><div class="v">780</div><div class="s">level 3</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="label"><b>Widgets</b> · WidgetsView</div>
+    </div>
+
+    <!-- BIOMECÂNICA -->
+    <div class="item">
+      <div class="watch"><div class="crown"></div><div class="btn-side"></div>
+        <div class="screen">
+          <div class="eyebrow">BIOMECHANICS</div>
+          <div class="title">Forma de corrida</div>
+          <div class="score">
+            <svg width="72" height="72">
+              <circle cx="36" cy="36" r="32" stroke="rgba(255,255,255,.08)" stroke-width="6" fill="none"/>
+              <circle cx="36" cy="36" r="32" stroke="url(#g)" stroke-width="6" fill="none" stroke-linecap="round"
+                stroke-dasharray="201" stroke-dashoffset="44"/>
+              <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#7B2DFF"/><stop offset="1" stop-color="#22D8FF"/>
+              </linearGradient></defs>
+            </svg>
+            <div class="mid"><div class="n">78</div><div class="s">score</div></div>
+          </div>
+          <div class="bar"><span class="bl">Cadência</span><span class="track"><span class="fill" style="width:82%"></span></span><span class="bv">82</span></div>
+          <div class="bar"><span class="bl">Passada</span><span class="track"><span class="fill" style="width:68%"></span></span><span class="bv">68</span></div>
+          <div class="bar"><span class="bl">GCT</span><span class="track"><span class="fill" style="width:74%"></span></span><span class="bv">74</span></div>
+          <div class="bar"><span class="bl">VO₂</span><span class="track"><span class="fill" style="width:61%"></span></span><span class="bv">61</span></div>
+        </div>
+      </div>
+      <div class="label"><b>Biomecânica</b> · BiomechanicsView</div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Mock HTML das telas SwiftUI — gerado a partir do código em <code>apple/TempoRunWatch/Sources/TempoRunWatch/Views/</code>.<br>
+    Não é a app real (essa roda no watchOS), mas é fiel ao layout, cores e textos do que foi commitado.
+  </div>
+</body>
+</html>

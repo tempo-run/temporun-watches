@@ -2,13 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>method</key>
+    <string>app-store</string>
     <key>destination</key>
     <string>upload</string>
     <key>provisioningProfiles</key>
     <dict>
-        <key>com.temporun.run.watchkitapp</key>
+        <key>com.temporun.watch.watchkitapp</key>
         <string>TempoRun Watch Distribution</string>
-        <key>com.temporun.run.watchkitapp.watchkitextension</key>
+        <key>com.temporun.watch.watchkitapp.watchkitextension</key>
         <string>TempoRun Watch Extension Distribution</string>
     </dict>
     <key>signingStyle</key>

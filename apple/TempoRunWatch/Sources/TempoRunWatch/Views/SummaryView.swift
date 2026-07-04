@@ -3,129 +3,167 @@ import SwiftUI
 struct SummaryView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     private var m: LiveMetrics { workoutManager.metrics }
+    private var result: WatchSaveResult? { workoutManager.saveResult }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 8) {
-                VStack(spacing: 2) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 26)).foregroundColor(.tempoOrange)
-                    Text("Corrida salva!")
-                        .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.white)
-                    Text("Sincronizando com o Health...")
-                        .font(.system(size: 10)).foregroundColor(.gray)
-                }
+            VStack(spacing: 10) {
 
-                divider()
-
-                // Primárias
-                group("Corrida") {
-                    SRow(icon: "figure.run",     label: "Distância",    value: m.distanceKm.formattedDistance + " km",    color: .tempoOrange)
-                    SRow(icon: "clock",          label: "Tempo",        value: workoutManager.elapsedTime.formattedDuration)
-                    SRow(icon: "speedometer",    label: "Pace médio",   value: m.averagePace.formattedPace + "/km")
-                    SRow(icon: "speedometer",    label: "Melhor pace",  value: m.bestPace.formattedPace + "/km",           color: .tempoOrange)
-                    SRow(icon: "gauge.medium",   label: "Vel. média",   value: "\(m.currentSpeed, default: "%.1f") m/s")
-                }
-
-                divider()
-
-                // Cardio
-                group("Cardio") {
-                    SRow(icon: "heart.fill",        label: "FC média",    value: "\(m.averageHeartRate, default: "%.0f") bpm", color: .red)
-                    SRow(icon: "arrow.down.heart",  label: "FC mín",      value: "\(m.minHeartRate == 999 ? 0 : m.minHeartRate, default: "%.0f") bpm", color: .blue)
-                    SRow(icon: "arrow.up.heart",    label: "FC máx",      value: "\(m.maxHeartRate, default: "%.0f") bpm", color: .red)
-                    SRow(icon: "waveform.path.ecg", label: "HRV",         value: "\(m.heartRateVariability, default: "%.1f") ms", color: .tempoOrange)
-                    SRow(icon: "lungs.fill",        label: "SpO₂",        value: "\(m.oxygenSaturation, default: "%.0f") %", color: .blue)
-                    SRow(icon: "chart.bar.fill",    label: "VO₂ máx",     value: "\(m.vo2Max, default: "%.1f") ml/kg", color: .green)
-                }
-
-                divider()
-
-                // Biomecânica
-                group("Biomecânica") {
-                    SRow(icon: "bolt.fill",             label: "Potência",        value: "\(m.runningPower, default: "%.0f") W", color: .tempoOrange)
-                    SRow(icon: "shoeprints.fill",       label: "Cadência",        value: "\(m.cadence, default: "%.0f") spm")
-                    SRow(icon: "arrow.left.and.right",  label: "Passada",         value: "\(m.strideLength, default: "%.2f") m")
-                    SRow(icon: "arrow.up.and.down",     label: "Oscilação",       value: "\(m.verticalOscillation, default: "%.1f") cm")
-                    SRow(icon: "percent",               label: "Vert. Ratio",     value: "\(m.verticalRatio, default: "%.1f") %")
-                    SRow(icon: "timer",                 label: "Contato solo",    value: "\(m.groundContactTime, default: "%.0f") ms")
-                    SRow(icon: "figure.run",            label: "Passos",          value: "\(m.stepCount, default: "%.0f")")
-                }
-
-                divider()
-
-                // Energia
-                group("Energia") {
-                    SRow(icon: "flame.fill", label: "Energia ativa",  value: "\(m.activeEnergyBurned, default: "%.0f") kcal", color: .tempoOrange)
-                    SRow(icon: "flame",      label: "Total calorias", value: "\(m.totalEnergyBurned, default: "%.0f") kcal")
-                }
-
-                divider()
-
-                // Altitude
-                group("Altitude") {
-                    SRow(icon: "arrow.up.right",    label: "Ganho elev.",  value: "+ \(m.elevationGain, default: "%.0f") m",  color: .green)
-                    SRow(icon: "arrow.down.right",  label: "Perda elev.",  value: "- \(m.elevationLoss, default: "%.0f") m",  color: .red)
-                    SRow(icon: "mountain.2.fill",   label: "Alt. máxima",  value: "\(m.maxAltitude, default: "%.0f") m")
-                    SRow(icon: "stairs",            label: "Lances",       value: "\(m.flightsClimbed, default: "%.0f")")
-                }
-
-                divider()
-
-                // Predições
-                if m.vo2Max > 0 {
-                    group("Predição · Daniels") {
-                        SRow(icon: "flag.fill", label: "5 km",      value: m.racePredictions.km5.formattedRaceTime,          color: .tempoOrange)
-                        SRow(icon: "flag.fill", label: "10 km",     value: m.racePredictions.km10.formattedRaceTime)
-                        SRow(icon: "flag.fill", label: "Meia",      value: m.racePredictions.halfMarathon.formattedRaceTime)
-                        SRow(icon: "flag.fill", label: "Maratona",  value: m.racePredictions.marathon.formattedRaceTime)
+                // ── Hero card ──────────────────────────────────────────────
+                VStack(spacing: 6) {
+                    // Lightning icon
+                    ZStack {
+                        Circle()
+                            .fill(Color.tempoPurple)
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.white)
                     }
-                    divider()
+
+                    Text("RUN COMPLETE")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(.tempoCyan)
+                        .kerning(1.5)
+
+                    Text("Boa corrida!")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+
+                    if let result, !result.is_duplicate {
+                        Text("Você manteve consistência e fechou dentro da zona.")
+                            .font(.system(size: 9, design: .rounded))
+                            .foregroundColor(.white.opacity(0.55))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(.top, 4)
+
+                // ── Primary stats row ──────────────────────────────────────
+                HStack(spacing: 0) {
+                    SummaryStatCell(
+                        value: String(format: "%.1f", m.distanceKm),
+                        label: "KM"
+                    )
+                    Divider().background(Color.white.opacity(0.25)).frame(height: 36)
+                    SummaryStatCell(
+                        value: workoutManager.elapsedTime.formattedDuration,
+                        label: "TEMPO"
+                    )
+                    Divider().background(Color.white.opacity(0.25)).frame(height: 36)
+                    SummaryStatCell(
+                        value: m.averagePace.formattedPace,
+                        label: "PACE"
+                    )
+                }
+                .padding(.vertical, 8)
+                .background(LinearGradient.tempoGradient)
+                .cornerRadius(14)
+
+                // ── Streak pill ────────────────────────────────────────────
+                if let result {
+                    VStack(spacing: 3) {
+                        Text("Streak \(result.streak_atual) dias")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(.tempoCyan)
+                            .padding(.horizontal, 14).padding(.vertical, 5)
+                            .background(Color.tempoCyan.opacity(0.15))
+                            .cornerRadius(20)
+
+                        if !result.novos_recordes.isEmpty {
+                            Text("Novos recordes pessoais! 🏆")
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(.yellow)
+                        }
+                    }
                 }
 
-                // XP, streak e recordes (quando disponível via edge function)
-                if let result = workoutManager.saveResult, !result.is_duplicate {
+                divider()
+
+                // ── Detailed metrics ───────────────────────────────────────
+                group("Corrida") {
+                    SRow(icon: "speedometer", label: "Pace médio",  value: m.averagePace.formattedPace + "/km")
+                    SRow(icon: "speedometer", label: "Melhor pace", value: m.bestPace.formattedPace + "/km", color: .tempoCyan)
+                }
+
+                divider()
+
+                group("Cardio") {
+                    SRow(icon: "heart.fill",        label: "FC média",  value: "\(m.averageHeartRate, default: "%.0f") bpm", color: .red)
+                    SRow(icon: "arrow.up.heart",    label: "FC máx",    value: "\(m.maxHeartRate, default: "%.0f") bpm")
+                    SRow(icon: "chart.bar.fill",    label: "VO₂ máx",   value: "\(m.vo2Max, default: "%.1f") ml/kg", color: .tempoCyan)
+                }
+
+                divider()
+
+                group("Biomecânica") {
+                    SRow(icon: "bolt.fill",            label: "Potência",  value: "\(m.runningPower, default: "%.0f") W",  color: .tempoOrange)
+                    SRow(icon: "shoeprints.fill",      label: "Cadência",  value: "\(m.cadence, default: "%.0f") spm")
+                    SRow(icon: "timer",                label: "GCT",       value: "\(m.groundContactTime, default: "%.0f") ms")
+                    SRow(icon: "arrow.left.and.right", label: "Passada",   value: "\(m.strideLength, default: "%.2f") m")
+                }
+
+                divider()
+
+                group("Energia") {
+                    SRow(icon: "flame.fill", label: "Kcal ativas", value: "\(m.activeEnergyBurned, default: "%.0f") kcal", color: .tempoOrange)
+                }
+
+                if m.vo2Max > 0 {
                     divider()
-                    group("Conquistas") {
-                        SRow(icon: "bolt.fill",  label: "XP ganho",
-                             value: "+\(result.xp_ganho) XP",        color: .tempoOrange)
-                        SRow(icon: "flame.fill", label: "Streak",
-                             value: "\(result.streak_atual) dias",    color: .orange)
+                    group("Predição · Daniels") {
+                        SRow(icon: "flag.fill", label: "5 km",    value: m.racePredictions.km5.formattedRaceTime,          color: .tempoOrange)
+                        SRow(icon: "flag.fill", label: "10 km",   value: m.racePredictions.km10.formattedRaceTime)
+                        SRow(icon: "flag.fill", label: "Meia",    value: m.racePredictions.halfMarathon.formattedRaceTime)
+                        SRow(icon: "flag.fill", label: "Maratona",value: m.racePredictions.marathon.formattedRaceTime)
+                    }
+                }
+
+                if let result, !result.novos_recordes.isEmpty {
+                    divider()
+                    group("Recordes pessoais") {
                         ForEach(result.novos_recordes, id: \.distancia) { pr in
                             SRow(icon: "trophy.fill", label: "PR \(pr.distancia)",
                                  value: pr.tempo_novo.formattedDuration, color: .yellow)
                         }
                     }
-                    divider()
                 }
+
+                divider()
 
                 Button(action: { workoutManager.resetWorkout() }) {
                     Text("Nova corrida")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundColor(.black).frame(maxWidth: .infinity)
-                        .padding(.vertical, 8).background(Color.tempoOrange).cornerRadius(20)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(LinearGradient.tempoPurpleCyan)
+                        .cornerRadius(24)
                 }
                 .buttonStyle(.plain)
                 .padding(.bottom, 12)
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 8)
         }
     }
 }
 
-@ViewBuilder
-private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-    VStack(spacing: 4) {
-        Text(title)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundColor(.tempoOrange)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        content()
-    }
-}
+// MARK: - Subviews
 
-private func divider() -> some View {
-    Divider().background(Color.gray.opacity(0.3))
+private struct SummaryStatCell: View {
+    let value: String; let label: String; var color: Color = .white
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundColor(color).monospacedDigit()
+            Text(label)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundColor(.gray).kerning(0.5)
+        }
+        .frame(maxWidth: .infinity)
+    }
 }
 
 private struct SRow: View {
@@ -139,4 +177,19 @@ private struct SRow: View {
                 .foregroundColor(.white).monospacedDigit()
         }
     }
+}
+
+@ViewBuilder
+private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    VStack(spacing: 4) {
+        Text(title)
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .foregroundColor(.tempoCyan)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        content()
+    }
+}
+
+private func divider() -> some View {
+    Divider().background(Color.white.opacity(0.08))
 }

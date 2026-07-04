@@ -8,6 +8,40 @@ enum WorkoutState {
     case idle, running, paused, ended
 }
 
+// MARK: - Tipo de atividade (corrida / caminhada)
+
+enum ActivityType: String, CaseIterable, Identifiable {
+    case corrida
+    case caminhada
+
+    var id: String { rawValue }
+
+    /// Tipo HealthKit usado na HKWorkoutConfiguration.
+    var hkType: HKWorkoutActivityType {
+        switch self {
+        case .corrida:   return .running
+        case .caminhada: return .walking
+        }
+    }
+
+    /// Valor gravado na coluna `tipo` da tabela corridas — inicial maiúscula.
+    var dbValue: String { label }
+
+    var label: String {
+        switch self {
+        case .corrida:   return "Corrida"
+        case .caminhada: return "Caminhada"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .corrida:   return "figure.run"
+        case .caminhada: return "figure.walk"
+        }
+    }
+}
+
 // MARK: - Zonas de FC (modelo 5 zonas padrão)
 
 struct HeartRateZones {
@@ -143,9 +177,15 @@ struct LiveMetrics {
 class WorkoutManager: NSObject, ObservableObject {
 
     @Published var state: WorkoutState = .idle
+    @Published var activityType: ActivityType = .corrida
     @Published var elapsedTime: TimeInterval = 0
     @Published var metrics = LiveMetrics()
+    @Published var lastMetrics = LiveMetrics()
     @Published var saveResult: WatchSaveResult?
+
+    // GPS / localização
+    @Published var locationStatus: CLAuthorizationStatus = .notDetermined
+    @Published var gpsAcquired: Bool = false   // true após o 1º fix preciso
 
     // Atalhos para as views
     var distanceKm: Double    { metrics.distanceKm }
@@ -178,29 +218,37 @@ class WorkoutManager: NSObject, ObservableObject {
 
     // MARK: - Tipos HK
 
-    private let shareTypes: Set<HKSampleType> = [
+    // Tipos mínimos necessários para beginCollection funcionar (HKLiveWorkoutDataSource)
+    private let coreShareTypes: Set<HKSampleType> = [
+        .workoutType(),
         HKQuantityType(.heartRate),
-        HKQuantityType(.heartRateVariabilitySDNN),
-        HKQuantityType(.restingHeartRate),
-        HKQuantityType(.vo2Max),
-        HKQuantityType(.oxygenSaturation),
-        HKQuantityType(.respiratoryRate),
         HKQuantityType(.distanceWalkingRunning),
-        HKQuantityType(.runningSpeed),
-        HKQuantityType(.stepCount),
-        HKQuantityType(.runningStrideLength),
-        HKQuantityType(.runningPower),
-        HKQuantityType(.runningGroundContactTime),
-        HKQuantityType(.runningVerticalOscillation),
         HKQuantityType(.activeEnergyBurned),
         HKQuantityType(.basalEnergyBurned),
-        HKQuantityType(.flightsClimbed),
-        HKQuantityType(.physicalEffort),
-        HKSeriesType.workoutRoute(),
-        .workoutType()
+        HKQuantityType(.stepCount),
+        HKSeriesType.workoutRoute()
     ]
 
+    // Tipos estendidos para o diálogo de autorização completo
+    private var shareTypes: Set<HKSampleType> {
+        coreShareTypes.union([
+            HKQuantityType(.heartRateVariabilitySDNN),
+            HKQuantityType(.restingHeartRate),
+            HKQuantityType(.vo2Max),
+            HKQuantityType(.oxygenSaturation),
+            HKQuantityType(.respiratoryRate),
+            HKQuantityType(.runningSpeed),
+            HKQuantityType(.runningStrideLength),
+            HKQuantityType(.runningPower),
+            HKQuantityType(.runningGroundContactTime),
+            HKQuantityType(.runningVerticalOscillation),
+            HKQuantityType(.flightsClimbed),
+            HKQuantityType(.physicalEffort)
+        ])
+    }
+
     private let readTypes: Set<HKObjectType> = [
+        HKObjectType.workoutType(),          // obrigatório ao ler HKWorkoutRouteTypeIdentifier
         HKQuantityType(.heartRate),
         HKQuantityType(.heartRateVariabilitySDNN),
         HKQuantityType(.restingHeartRate),
@@ -222,6 +270,13 @@ class WorkoutManager: NSObject, ObservableObject {
         HKSeriesType.workoutRoute()
     ]
 
+    // HKUnit para VO2 máx: mL/(kg·min) — "ml/kg/min" é inválido no parser do HKUnit
+    private static let vo2MaxUnit: HKUnit = {
+        HKUnit.literUnit(with: .milli)
+            .unitDivided(by: HKUnit.gramUnit(with: .kilo)
+            .unitMultiplied(by: HKUnit.minute()))
+    }()
+
     // MARK: - Init
 
     override init() {
@@ -229,20 +284,36 @@ class WorkoutManager: NSObject, ObservableObject {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         locationManager.distanceFilter = 5
+        locationStatus = locationManager.authorizationStatus
     }
 
     // MARK: - Autorização
 
     func requestAuthorization() async {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
+        CrashReporter.breadcrumb("requestAuthorization: início")
+        guard HKHealthStore.isHealthDataAvailable() else {
+            CrashReporter.breadcrumb("requestAuthorization: HealthData indisponível")
+            return
+        }
         try? await healthStore.requestAuthorization(toShare: shareTypes, read: readTypes)
-        await fetchRestingMetrics()
+        CrashReporter.breadcrumb("requestAuthorization: concluída")
+        Task { await fetchRestingMetrics() }
+    }
+
+
+    /// Pede autorização de localização. Chamar cedo (no launch) para o usuário
+    /// liberar o GPS antes de iniciar a corrida.
+    func requestLocationAuthorization() {
+        locationStatus = locationManager.authorizationStatus
+        if locationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        }
     }
 
     private func fetchRestingMetrics() async {
         let rhr = await fetchLatest(.restingHeartRate, unit: .count().unitDivided(by: .minute()))
         let hrv = await fetchLatest(.heartRateVariabilitySDNN, unit: .secondUnit(with: .milli))
-        let vo2 = await fetchLatest(.vo2Max, unit: HKUnit(from: "ml/kg/min"))
+        let vo2 = await fetchLatest(.vo2Max, unit: Self.vo2MaxUnit)
 
         metrics.restingHeartRate = rhr
         metrics.heartRateVariability = hrv
@@ -268,33 +339,67 @@ class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Controle de sessão
 
     func startWorkout() {
+        CrashReporter.breadcrumb("startWorkout: início")
+        gpsAcquired = false
         Task {
-            await requestAuthorization()
+            guard HKHealthStore.isHealthDataAvailable() else {
+                CrashReporter.breadcrumb("startWorkout: HealthData indisponível — abortou")
+                return
+            }
+
             let config = HKWorkoutConfiguration()
-            config.activityType = .running
+            config.activityType = activityType.hkType
             config.locationType = .outdoor
 
             do {
+                CrashReporter.breadcrumb("startWorkout: criando HKWorkoutSession")
                 let session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
+                CrashReporter.breadcrumb("startWorkout: associatedWorkoutBuilder")
                 let builder = session.associatedWorkoutBuilder()
-                builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
-                                                              workoutConfiguration: config)
+                // Delegates antes de dataSource para evitar NSException na inicialização
                 session.delegate = self
                 builder.delegate = self
+                CrashReporter.breadcrumb("startWorkout: criando HKLiveWorkoutDataSource")
+                builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
+                                                              workoutConfiguration: config)
                 workoutSession = session
                 workoutBuilder = builder
                 routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
 
                 startDate = Date()
                 lastZoneTimestamp = startDate!
+                CrashReporter.breadcrumb("startWorkout: session.startActivity")
                 session.startActivity(with: startDate!)
-                try await builder.beginCollection(at: startDate!)
 
+                // Transiciona a UI imediatamente — não espera beginCollection,
+                // que pode falhar se algum tipo HK não foi autorizado ainda.
+                CrashReporter.breadcrumb("startWorkout: state = .running")
                 state = .running
+                CrashReporter.breadcrumb("startWorkout: startTimer")
                 startTimer()
+                CrashReporter.breadcrumb("startWorkout: startUpdatingLocation")
                 locationManager.startUpdatingLocation()
+
+                // beginCollection é não-fatal: sem ele os dados não são
+                // gravados no Health, mas a UI de corrida funciona normalmente.
+                // VoiceCoach fica DEPOIS do await para garantir que SwiftUI
+                // renderize LiveMetricsView antes de qualquer chamada de áudio
+                // (AVSpeechSynthesizer pode travar o thread se chamado antes do
+                // primeiro ponto de suspensão na mesma task).
+                CrashReporter.breadcrumb("startWorkout: beginCollection")
+                do {
+                    try await builder.beginCollection(at: startDate!)
+                    CrashReporter.breadcrumb("startWorkout: beginCollection OK")
+                } catch {
+                    CrashReporter.breadcrumb("startWorkout: beginCollection FALHOU: \(error.localizedDescription)")
+                    print("beginCollection falhou (dados não serão salvos): \(error)")
+                }
+
+                CrashReporter.breadcrumb("startWorkout: VoiceCoach.announceStart")
+                VoiceCoach.shared.announceStart()
             } catch {
-                print("Erro ao iniciar sessão: \(error)")
+                CrashReporter.breadcrumb("startWorkout: ERRO ao criar sessão: \(error.localizedDescription)")
+                print("Erro ao criar sessão: \(error)")
             }
         }
     }
@@ -317,6 +422,7 @@ class WorkoutManager: NSObject, ObservableObject {
     func endWorkout() {
         guard let session = workoutSession, let builder = workoutBuilder else { return }
         flushZoneTime()
+        VoiceCoach.shared.announceFinish()
         session.end()
         Task {
             try? await builder.endCollection(at: Date())
@@ -327,7 +433,8 @@ class WorkoutManager: NSObject, ObservableObject {
             metrics.averagePace = metrics.distanceKm > 0 ? elapsedTime / metrics.distanceKm : 0
 
             guard let start = startDate else { state = .ended; return }
-            let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime, startDate: start)
+            let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime,
+                                         startDate: start, tipo: activityType.dbValue)
 
             let iPhoneReachable = WCSession.default.activationState == .activated
                                   && WCSession.default.isReachable
@@ -340,6 +447,7 @@ class WorkoutManager: NSObject, ObservableObject {
                 await saveStandalone(payload: payload)
             }
 
+            lastMetrics = metrics
             state = .ended
         }
     }
@@ -351,6 +459,7 @@ class WorkoutManager: NSObject, ObservableObject {
         // (interface WatchWorkoutPayload em index.ts). Nomes divergentes são lidos como
         // undefined no Deno e viram NULL silencioso no banco — ver CONTRACT_AUDIT.md.
         let dict: [String: Any] = [
+            "tipo":                      payload.tipo ?? "corrida",
             "distancia_km":              payload.distanceKm,
             "duracao_seg":               Int(payload.elapsedTime),
             "pace_medio":                payload.averagePace,
@@ -412,6 +521,7 @@ class WorkoutManager: NSObject, ObservableObject {
         elapsedTime = 0; metrics = LiveMetrics()
         lastSplitKm = 0; splitStartTime = 0
         splitStartHRSum = 0; splitHRSamples = 0; splitStartElevation = 0
+        gpsAcquired = false
         state = .idle
     }
 
@@ -487,6 +597,7 @@ class WorkoutManager: NSObject, ObservableObject {
         lastSplitKm = currentKm
 
         WKInterfaceDevice.current().play(.success)
+        VoiceCoach.shared.announceKm(currentKm, paceSeconds: splitPace)
     }
 
     // MARK: - Atualização de métricas
@@ -517,7 +628,7 @@ class WorkoutManager: NSObject, ObservableObject {
                 .doubleValue(for: .count().unitDivided(by: .minute())) ?? metrics.restingHeartRate
 
         case .vo2Max:
-            let v = stats.mostRecentQuantity()?.doubleValue(for: HKUnit(from: "ml/kg/min")) ?? 0
+            let v = stats.mostRecentQuantity()?.doubleValue(for: Self.vo2MaxUnit) ?? 0
             if v > 0 {
                 metrics.vo2Max = v
                 metrics.racePredictions = RacePredictions(vo2Max: v)
@@ -624,11 +735,17 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 // MARK: - CLLocationManagerDelegate
 
 extension WorkoutManager: CLLocationManagerDelegate {
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in self.locationStatus = status }
+    }
+
     nonisolated func locationManager(_ manager: CLLocationManager,
                                      didUpdateLocations newLocations: [CLLocation]) {
         let filtered = newLocations.filter { $0.horizontalAccuracy < 20 }
         guard !filtered.isEmpty else { return }
         Task { @MainActor in
+            if !self.gpsAcquired { self.gpsAcquired = true }
             for loc in filtered {
                 // Altitude
                 metrics.currentAltitude = loc.altitude

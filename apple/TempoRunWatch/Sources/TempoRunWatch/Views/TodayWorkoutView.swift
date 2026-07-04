@@ -1,282 +1,275 @@
 import SwiftUI
+import CoreLocation
 
-// Tela principal quando o app abre e há um treino do dia
+// MARK: - Home (Treino de hoje)
+
 struct TodayWorkoutView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @EnvironmentObject var planManager: TrainingPlanManager
 
     var body: some View {
-        if let workout = planManager.todayWorkout {
-            WorkoutDetailView(workout: workout)
-        } else if planManager.isLoadingPlan {
-            LoadingPlanView()
-        } else {
-            NoPlanView()
-        }
-    }
-}
-
-// MARK: - Detalhe do treino do dia
-
-struct WorkoutDetailView: View {
-    let workout: DailyWorkout
-    @EnvironmentObject var workoutManager: WorkoutManager
-
-    var body: some View {
         ScrollView {
-            VStack(spacing: 8) {
-
-                // Header: ícone + tipo
-                HStack(spacing: 6) {
-                    Image(systemName: workout.workoutType.sfSymbol)
-                        .font(.system(size: 18))
-                        .foregroundColor(intensityColor)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(workout.tipo)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        Text(workout.dia)
-                            .font(.system(size: 10))
-                            .foregroundColor(.gray)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Métricas-alvo
-                if !workout.workoutType.isRest {
-                    HStack(spacing: 0) {
-                        TargetCell(label: "Distância",
-                                   value: String(format: "%.1f", workout.distancia_km),
-                                   unit: "km",
-                                   color: intensityColor)
-                        Divider().background(Color.gray.opacity(0.3)).frame(height: 30)
-                        TargetCell(label: "Pace alvo",
-                                   value: workout.pace_alvo.replacingOccurrences(of: "/km", with: ""),
-                                   unit: "/km",
-                                   color: .white)
-                    }
-                    .background(Color.white.opacity(0.06))
-                    .cornerRadius(10)
-                }
-
-                // Descrição
-                Text(workout.descricao)
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundColor(.gray)
+            VStack(spacing: 10) {
+                // Brand
+                Text("TEMPORUN")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundColor(.tempoCyan)
+                    .kerning(1.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                // Detalhe (breakdown)
-                if !workout.detalhe_treino.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Estrutura")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.tempoOrange)
-                        ForEach(workout.detalhe_treino.components(separatedBy: " - "), id: \.self) { block in
-                            HStack(spacing: 4) {
-                                Circle().fill(intensityColor).frame(width: 5, height: 5)
-                                Text(block)
-                                    .font(.system(size: 10, design: .rounded))
-                                    .foregroundColor(.white.opacity(0.85))
-                            }
-                        }
+                // Cartão do plano (se houver)
+                if planManager.isLoadingPlan {
+                    HomeLoadingView()
+                } else if let workout = planManager.todayWorkout {
+                    if workout.workoutType.isRest {
+                        RestNote()
+                    } else {
+                        PlanCard(workout: workout)
                     }
-                    .padding(8)
-                    .background(Color.white.opacity(0.06))
-                    .cornerRadius(10)
-                }
-
-                // Alerta de lesão
-                if !workout.alerta_lesao.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.yellow).font(.system(size: 11))
-                        Text(workout.alerta_lesao)
-                            .font(.system(size: 10, design: .rounded))
-                            .foregroundColor(.yellow)
-                    }
-                    .padding(8)
-                    .background(Color.yellow.opacity(0.1))
-                    .cornerRadius(10)
-                }
-
-                // Botões
-                if workout.workoutType.isRest {
-                    Label("Dia de descanso", systemImage: "moon.zzz.fill")
-                        .font(.system(size: 12, design: .rounded))
-                        .foregroundColor(.gray)
-                        .padding(.top, 4)
                 } else {
-                    Button(action: { workoutManager.startWorkout() }) {
-                        Label("Iniciar treino", systemImage: "play.fill")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(.black)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(intensityColor)
-                            .cornerRadius(24)
-                    }
-                    .buttonStyle(.plain)
+                    NoPlanNote()
                 }
+
+                // Aviso de GPS
+                GPSNoticeBanner()
+
+                // Seletor corrida / caminhada
+                ActivitySelector(selection: $workoutManager.activityType)
+
+                // Botão grande de iniciar
+                StartActivityButton()
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 10)
+            .padding(.top, 4)
             .padding(.bottom, 12)
         }
     }
-
-    private var intensityColor: Color {
-        switch workout.workoutType.intensityColor {
-        case .rest:     return .gray
-        case .easy:     return .green
-        case .moderate: return .tempoOrange
-        case .hard:     return .red
-        }
-    }
 }
 
-// MARK: - Semana completa
+// MARK: - Seletor de atividade
 
-struct WeekPlanView: View {
-    @EnvironmentObject var planManager: TrainingPlanManager
+struct ActivitySelector: View {
+    @Binding var selection: ActivityType
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 4) {
-                Text("Esta semana")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.tempoOrange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if planManager.weekWorkouts.isEmpty {
-                    Text("Nenhum plano carregado")
-                        .font(.system(size: 11, design: .rounded))
-                        .foregroundColor(.gray)
-                        .padding(.top, 16)
-                } else {
-                    ForEach(planManager.weekWorkouts) { day in
-                        WeekDayRow(workout: day)
+        HStack(spacing: 6) {
+            ForEach(ActivityType.allCases) { type in
+                let isSelected = selection == type
+                Button(action: { selection = type }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: type.icon)
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(type.label)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                     }
+                    .foregroundColor(isSelected ? .tempoCyan : .white.opacity(0.4))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(isSelected ? Color.tempoCard : Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .strokeBorder(isSelected ? Color.tempoCyan.opacity(0.7)
+                                                             : Color.white.opacity(0.12),
+                                                  lineWidth: 1)
+                            )
+                    )
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
         }
     }
 }
 
-private struct WeekDayRow: View {
+// MARK: - Botão grande de iniciar
+
+struct StartActivityButton: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+
+    var body: some View {
+        Button(action: {
+            CrashReporter.beginAttempt()
+            CrashReporter.breadcrumb("UI: tocou Iniciar atividade (\(workoutManager.activityType.dbValue))")
+            Task {
+                await workoutManager.requestAuthorization()
+                workoutManager.startWorkout()
+            }
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 15, weight: .bold))
+                Text("Iniciar atividade")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(LinearGradient.tempoPurpleCyan)
+            .cornerRadius(26)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Cartão do plano
+
+private struct PlanCard: View {
     let workout: DailyWorkout
-
-    private var isToday: Bool {
-        let weekday = Calendar.current.component(.weekday, from: Date())
-        let names = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"]
-        return names[weekday - 1] == workout.dia
-    }
-
-    private var intensityColor: Color {
-        switch workout.workoutType.intensityColor {
-        case .rest:     return .gray
-        case .easy:     return .green
-        case .moderate: return .tempoOrange
-        case .hard:     return .red
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            // Indicador de dia
-            VStack(spacing: 1) {
-                Text(workout.dia.prefix(3))
-                    .font(.system(size: 10, weight: isToday ? .bold : .regular, design: .rounded))
-                    .foregroundColor(isToday ? .tempoOrange : .gray)
-                if isToday {
-                    Circle().fill(Color.tempoOrange).frame(width: 4, height: 4)
-                }
-            }
-            .frame(width: 30)
-
-            // Ícone de tipo
-            Image(systemName: workout.workoutType.sfSymbol)
-                .foregroundColor(intensityColor)
-                .font(.system(size: 13))
-                .frame(width: 18)
-
-            // Tipo + distância
-            VStack(alignment: .leading, spacing: 1) {
-                Text(workout.tipo)
-                    .font(.system(size: 11, weight: isToday ? .semibold : .regular, design: .rounded))
-                    .foregroundColor(isToday ? .white : .gray)
-                if !workout.workoutType.isRest {
-                    Text("\(String(format: "%.1f", workout.distancia_km)) km · \(workout.pace_alvo)")
-                        .font(.system(size: 9, design: .rounded))
-                        .foregroundColor(.gray)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, 3)
-        .padding(.horizontal, 6)
-        .background(isToday ? Color.white.opacity(0.08) : Color.clear)
-        .cornerRadius(8)
-    }
-}
-
-// MARK: - States auxiliares
-
-private struct LoadingPlanView: View {
-    var body: some View {
-        VStack(spacing: 10) {
-            ProgressView().tint(.tempoOrange)
-            Text("Carregando plano...")
-                .font(.system(size: 12, design: .rounded))
-                .foregroundColor(.gray)
-        }
-    }
-}
-
-private struct NoPlanView: View {
     @EnvironmentObject var planManager: TrainingPlanManager
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "calendar.badge.exclamationmark")
-                .font(.system(size: 28)).foregroundColor(.gray)
-            Text("Sem plano ativo")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
-            Text("Crie um plano no app do iPhone")
+        VStack(alignment: .leading, spacing: 3) {
+            Text("TREINO DE HOJE")
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundColor(.tempoCyan.opacity(0.7))
+                .kerning(1)
+
+            Text(workout.tipo)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.tempoCyan)
+
+            HStack(spacing: 4) {
+                Text(String(format: "%.0f km", workout.distancia_km))
+                Text("·")
+                Text(workout.pace_alvo.replacingOccurrences(of: "/km", with: "") + "/km")
+                if let wk = planManager.plan?.currentWeek {
+                    Text("·")
+                    Text("Sem \(wk.semana)/\(planManager.plan?.semanas.count ?? 0)")
+                }
+            }
+            .font(.system(size: 9, design: .rounded))
+            .foregroundColor(.white.opacity(0.5))
+
+            if let obj = planManager.plan?.objetivo, !obj.isEmpty {
+                Text(obj)
+                    .font(.system(size: 8, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.45))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.tempoCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color.tempoCyan.opacity(0.6), lineWidth: 1)
+                )
+        )
+    }
+}
+
+private struct RestNote: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "moon.zzz.fill").foregroundColor(.gray)
+            Text("Descanso hoje — bora de caminhada leve?")
                 .font(.system(size: 10, design: .rounded))
+                .foregroundColor(.gray)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .background(Color.white.opacity(0.06))
+        .cornerRadius(12)
+    }
+}
+
+private struct NoPlanNote: View {
+    @EnvironmentObject var planManager: TrainingPlanManager
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 22)).foregroundColor(.gray)
+            Text("Sem plano ativo")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundColor(.white)
+            Text("Crie um plano no iPhone — ou inicie uma atividade livre abaixo")
+                .font(.system(size: 9, design: .rounded))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
             Button(action: { planManager.requestPlanFromPhone() }) {
                 Text("Sincronizar")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundColor(.black)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.gray)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 7)
-                    .background(Color.tempoOrange)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.08))
                     .cornerRadius(20)
             }
             .buttonStyle(.plain)
         }
-        .padding()
+        .padding(.vertical, 4)
     }
 }
 
-// MARK: - Cell reutilizável
+// MARK: - GPS notice banner
 
-private struct TargetCell: View {
-    let label: String; let value: String; let unit: String; let color: Color
+struct GPSNoticeBanner: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+
     var body: some View {
-        VStack(spacing: 1) {
-            Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(color).monospacedDigit()
-            Text(unit)
-                .font(.system(size: 9)).foregroundColor(.gray)
-            Text(label)
-                .font(.system(size: 9)).foregroundColor(.gray)
+        switch workoutManager.locationStatus {
+        case .notDetermined:
+            banner(icon: "location.circle", color: .tempoCyan,
+                   text: "Ative o GPS para rastrear sua atividade",
+                   action: { workoutManager.requestLocationAuthorization() },
+                   actionLabel: "Ativar GPS")
+        case .denied, .restricted:
+            banner(icon: "location.slash.fill", color: .red,
+                   text: "GPS desativado. Ative em Ajustes › Privacidade › Localização",
+                   action: nil, actionLabel: nil)
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func banner(icon: String, color: Color, text: String,
+                        action: (() -> Void)?, actionLabel: String?) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 13))
+                    .foregroundColor(color)
+                Text(text)
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundColor(.white.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let action, let actionLabel {
+                Button(action: action) {
+                    Text(actionLabel)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(color.opacity(0.25))
+                        .cornerRadius(14)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(8)
+        .background(color.opacity(0.12))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Loading
+
+private struct HomeLoadingView: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            ProgressView().tint(.tempoCyan)
+            Text("Carregando plano...")
+                .font(.system(size: 11, design: .rounded))
+                .foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
     }
 }

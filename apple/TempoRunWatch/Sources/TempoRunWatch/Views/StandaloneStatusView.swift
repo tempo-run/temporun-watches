@@ -7,10 +7,31 @@ struct StandaloneStatusView: View {
     @EnvironmentObject var offlineQueue: OfflineQueue
     @ObservedObject var network = NetworkMonitor.shared
     @State private var showConfirmClear = false
+    @AppStorage("voiceCoaching") private var voiceCoaching = true
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
+                pageTitle("Treinador de voz")
+
+                Toggle(isOn: $voiceCoaching) {
+                    HStack(spacing: 6) {
+                        Image(systemName: voiceCoaching ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                            .foregroundColor(voiceCoaching ? .tempoCyan : .gray)
+                            .font(.system(size: 13))
+                        Text("Voz durante o treino")
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundColor(.white)
+                    }
+                }
+                .tint(.tempoPurple)
+
+                Text("Avisos falados de pace e quilômetros. Use AirPods para ouvir melhor.")
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider().background(Color.gray.opacity(0.3))
                 pageTitle("Conexão")
 
                 // Status de rede
