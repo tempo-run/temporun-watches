@@ -26,6 +26,8 @@ import androidx.wear.compose.material.Text
 import com.temporun.run.wear.network.NetworkMonitor
 import com.temporun.run.wear.network.OfflineQueue
 import com.temporun.run.wear.network.SupabaseConfig
+import com.temporun.run.wear.presentation.theme.SystemGreen
+import com.temporun.run.wear.presentation.theme.SystemRed
 import com.temporun.run.wear.presentation.theme.TempoOrange
 import kotlinx.coroutines.launch
 
@@ -50,7 +52,7 @@ fun StandaloneStatusScreen() {
         Spacer(Modifier.height(6.dp))
 
         StatusRow("Rede", if (connected) "conectado" else "offline", if (connected) Green else Color.Gray)
-        StatusRow("Credenciais", if (configured) "ok" else "faltando", if (configured) Green else Color(0xFFEF5350))
+        StatusRow("Credenciais", if (configured) "ok" else "faltando", if (configured) Green else SystemRed)
         StatusRow("Fila pendente", "$pending", if (pending > 0) TempoOrange else Color.White)
 
         Spacer(Modifier.height(10.dp))
@@ -67,7 +69,7 @@ fun StandaloneStatusScreen() {
     }
 }
 
-private val Green = Color(0xFF66BB6A)
+private val Green = SystemGreen
 
 @Composable
 private fun StatusRow(label: String, value: String, color: Color) {

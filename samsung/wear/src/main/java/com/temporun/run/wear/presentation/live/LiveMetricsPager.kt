@@ -32,6 +32,11 @@ import androidx.wear.compose.material.HorizontalPageIndicator
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.PageIndicatorState
 import androidx.wear.compose.material.Text
+import com.temporun.run.wear.presentation.theme.SystemBlue
+import com.temporun.run.wear.presentation.theme.SystemGray
+import com.temporun.run.wear.presentation.theme.SystemGreen
+import com.temporun.run.wear.presentation.theme.SystemRed
+import com.temporun.run.wear.presentation.theme.SystemYellow
 import com.temporun.run.wear.presentation.theme.TempoOrange
 import com.temporun.run.wear.util.formattedDistance
 import com.temporun.run.wear.util.formattedDuration
@@ -161,9 +166,9 @@ private fun CardioPage(m: LiveMetrics) {
     ScrollPage("Cardio") {
         MetricRow("FC atual", "${m.heartRate.toInt()} bpm", zoneColor(m.currentZone))
         MetricRow("FC média", "${m.averageHeartRate.toInt()} bpm")
-        MetricRow("FC mín", "${m.minHeartRate.toInt()} bpm", Color(0xFF4FC3F7))
-        MetricRow("FC máx", "${m.maxHeartRate.toInt()} bpm", Color(0xFFEF5350))
-        if (m.vo2Max > 0) MetricRow("VO₂ máx", "%.1f ml/kg".format(m.vo2Max), Color(0xFF66BB6A))
+        MetricRow("FC mín", "${m.minHeartRate.toInt()} bpm", SystemBlue)
+        MetricRow("FC máx", "${m.maxHeartRate.toInt()} bpm", SystemRed)
+        if (m.vo2Max > 0) MetricRow("VO₂ máx", "%.1f ml/kg".format(m.vo2Max), SystemGreen)
     }
 }
 
@@ -173,8 +178,8 @@ private fun CardioPage(m: LiveMetrics) {
 private fun AltitudePage(m: LiveMetrics) {
     ScrollPage("Altitude") {
         MetricRow("Atual", "${m.currentAltitude.toInt()} m", TempoOrange)
-        MetricRow("Ganho", "+ ${m.elevationGain.toInt()} m", Color(0xFF66BB6A))
-        MetricRow("Perda", "- ${m.elevationLoss.toInt()} m", Color(0xFFEF5350))
+        MetricRow("Ganho", "+ ${m.elevationGain.toInt()} m", SystemGreen)
+        MetricRow("Perda", "- ${m.elevationLoss.toInt()} m", SystemRed)
         MetricRow("Máxima", "${m.maxAltitude.toInt()} m")
         MetricRow("Mínima", "${m.minAltitude.toInt()} m")
     }
@@ -204,7 +209,7 @@ private fun SplitsPage(m: LiveMetrics) {
                     )
                     Text(
                         if (s.avgHeartRate > 0) "${s.avgHeartRate.toInt()}" else "--",
-                        fontSize = 12.sp, color = Color(0xFFEF5350),
+                        fontSize = 12.sp, color = SystemRed,
                     )
                 }
             }
@@ -247,13 +252,16 @@ private fun ControlsPage(paused: Boolean, onTogglePause: () -> Unit, onEnd: () -
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Button(onClick = onTogglePause, colors = ButtonDefaults.secondaryButtonColors()) {
-            Text(if (paused) "Continuar" else "Pausar", fontSize = 12.sp)
+        Button(
+            onClick = onTogglePause,
+            colors = ButtonDefaults.buttonColors(backgroundColor = SystemGray.copy(alpha = 0.35f)),
+        ) {
+            Text(if (paused) "Continuar" else "Pausar", fontSize = 12.sp, color = Color.White)
         }
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = onEnd,
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFC62828)),
+            colors = ButtonDefaults.buttonColors(backgroundColor = SystemRed.copy(alpha = 0.75f)),
         ) {
             Text("Encerrar", fontSize = 12.sp, color = Color.White)
         }
@@ -307,12 +315,12 @@ private fun ZoneBadge(zone: Int) {
 }
 
 fun zoneColor(zone: Int): Color = when (zone) {
-    1 -> Color(0xFF4FC3F7)   // azul — recuperação
-    2 -> Color(0xFF66BB6A)   // verde — base aeróbica
-    3 -> Color(0xFFFFEE58)   // amarelo — tempo
+    1 -> SystemBlue   // azul — recuperação
+    2 -> SystemGreen   // verde — base aeróbica
+    3 -> SystemYellow   // amarelo — tempo
     4 -> TempoOrange         // laranja — limiar
-    5 -> Color(0xFFEF5350)   // vermelho — VO₂ máx
-    else -> Color.Gray
+    5 -> SystemRed   // vermelho — VO₂ máx
+    else -> SystemGray
 }
 
 private fun zoneName(zone: Int): String =

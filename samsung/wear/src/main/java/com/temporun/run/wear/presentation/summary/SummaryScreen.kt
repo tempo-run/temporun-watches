@@ -20,6 +20,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
+import com.temporun.run.wear.presentation.theme.SystemBlue
+import com.temporun.run.wear.presentation.theme.SystemGreen
+import com.temporun.run.wear.presentation.theme.SystemRed
 import com.temporun.run.wear.presentation.theme.TempoOrange
 import com.temporun.run.wear.util.formattedDistance
 import com.temporun.run.wear.util.formattedDuration
@@ -56,17 +59,17 @@ fun SummaryScreen(vm: WorkoutViewModel) {
             SRow("Cadência", "${m.cadence.toInt()} spm")
         }
         Section("Cardio") {
-            SRow("FC média", "${m.averageHeartRate.toInt()} bpm", Color(0xFFEF5350))
-            SRow("FC mín", "${m.minHeartRate.toInt()} bpm", Color(0xFF4FC3F7))
-            SRow("FC máx", "${m.maxHeartRate.toInt()} bpm", Color(0xFFEF5350))
-            if (m.vo2Max > 0) SRow("VO₂ máx", "%.1f ml/kg".format(m.vo2Max), Color(0xFF66BB6A))
+            SRow("FC média", "${m.averageHeartRate.toInt()} bpm", SystemRed)
+            SRow("FC mín", "${m.minHeartRate.toInt()} bpm", SystemBlue)
+            SRow("FC máx", "${m.maxHeartRate.toInt()} bpm", SystemRed)
+            if (m.vo2Max > 0) SRow("VO₂ máx", "%.1f ml/kg".format(m.vo2Max), SystemGreen)
         }
         Section("Energia") {
             SRow("Calorias", "${m.activeEnergyBurned.toInt()} kcal", TempoOrange)
         }
         Section("Altitude") {
-            SRow("Ganho", "+ ${m.elevationGain.toInt()} m", Color(0xFF66BB6A))
-            SRow("Perda", "- ${m.elevationLoss.toInt()} m", Color(0xFFEF5350))
+            SRow("Ganho", "+ ${m.elevationGain.toInt()} m", SystemGreen)
+            SRow("Perda", "- ${m.elevationLoss.toInt()} m", SystemRed)
             SRow("Máxima", "${m.maxAltitude.toInt()} m")
         }
         if (m.splits.isNotEmpty()) {

@@ -21,6 +21,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
+import com.temporun.run.wear.presentation.theme.SystemGray
+import com.temporun.run.wear.presentation.theme.SystemGreen
+import com.temporun.run.wear.presentation.theme.SystemRed
 import com.temporun.run.wear.presentation.theme.TempoOrange
 import com.temporun.run.wear.training.DailyWorkout
 import com.temporun.run.wear.training.TrainingPlanRepository
@@ -90,10 +93,10 @@ private fun Metric(value: String, label: String) {
 }
 
 internal fun intensityColor(w: DailyWorkout): Color = when (w.workoutType.intensity) {
-    WorkoutIntensity.REST -> Color(0xFF9E9E9E)
-    WorkoutIntensity.EASY -> Color(0xFF66BB6A)
-    WorkoutIntensity.MODERATE -> Color(0xFFFFEE58)
-    WorkoutIntensity.HARD -> TempoOrange
+    WorkoutIntensity.REST -> SystemGray
+    WorkoutIntensity.EASY -> SystemGreen
+    WorkoutIntensity.MODERATE -> TempoOrange
+    WorkoutIntensity.HARD -> SystemRed
 }
 
 internal fun trimKm(km: Double): String =

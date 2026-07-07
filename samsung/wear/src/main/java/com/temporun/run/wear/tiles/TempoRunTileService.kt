@@ -67,6 +67,6 @@ class TempoRunTileService : TileService() {
         private const val RESOURCES_VERSION = "1"
         private const val ORANGE = 0xFFFF6B35.toInt()
         private const val WHITE = 0xFFFFFFFF.toInt()
-        private const val GRAY = 0xFF9E9E9E.toInt()
+        private const val GRAY = 0xFF8E8E93.toInt()   // systemGray (Apple Watch)
     }
 }
