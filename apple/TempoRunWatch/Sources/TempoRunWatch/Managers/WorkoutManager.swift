@@ -438,12 +438,25 @@ class WorkoutManager: NSObject, ObservableObject {
 
             let iPhoneReachable = WCSession.default.activationState == .activated
                                   && WCSession.default.isReachable
+            let watchCanSave = NetworkMonitor.shared.isConnected && SupabaseConfig.isConfigured
 
-            if iPhoneReachable {
-                // Caminho A/B: envia ao iPhone (iPhone grava no Supabase)
+            if watchCanSave {
+                // Caminho primário: o próprio relógio grava via edge function.
+                // Não dependemos do app iOS persistir o relay — a corrida é salva
+                // enquanto o relógio tiver rede. O dedup do servidor (data_inicio ±30s)
+                // impede duplicata caso o iPhone também grave.
+                await saveStandalone(payload: payload)
+                // Espelha para o iPhone (atualiza UI do app; se o relógio tiver
+                // falhado, o iPhone grava e o dedup evita linha dupla).
+                if iPhoneReachable {
+                    WatchSessionManager.shared.sendWorkout(payload)
+                }
+            } else if iPhoneReachable {
+                // Relógio sem rede, mas iPhone por perto: delega a gravação ao iPhone.
                 WatchSessionManager.shared.sendWorkout(payload)
             } else {
-                // Caminho standalone: grava direto no Supabase ou enfileira
+                // Nem relógio nem iPhone com caminho agora: enfileira (saveStandalone
+                // cai no OfflineQueue quando offline) para sincronizar quando a rede voltar.
                 await saveStandalone(payload: payload)
             }
 

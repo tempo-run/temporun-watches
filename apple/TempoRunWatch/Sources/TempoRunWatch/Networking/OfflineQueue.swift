@@ -119,6 +119,12 @@ final class OfflineQueue: ObservableObject {
                         item.lastError = error.localizedDescription
                         queue[i] = item
                     }
+                } else {
+                    // Sem refresh token: conta a tentativa para não travar a fila
+                    // indefinidamente (descartada após maxAttempts).
+                    item.attempts += 1
+                    item.lastError = "401 sem refresh token"
+                    queue[i] = item
                 }
             } catch {
                 item.attempts += 1
