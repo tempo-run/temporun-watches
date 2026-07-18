@@ -1,6 +1,5 @@
 package com.temporun.run.wear.presentation.start
 
-import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
+import com.temporun.run.wear.workout.WORKOUT_PERMISSIONS
 import com.temporun.run.wear.workout.WorkoutViewModel
 
 /**
@@ -48,16 +48,7 @@ fun StartScreen(vm: WorkoutViewModel) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 12.dp),
         )
-        Button(onClick = {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.BODY_SENSORS,
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACTIVITY_RECOGNITION,
-                    Manifest.permission.POST_NOTIFICATIONS,
-                )
-            )
-        }) {
+        Button(onClick = { permissionLauncher.launch(WORKOUT_PERMISSIONS) }) {
             Text("Iniciar")
         }
     }

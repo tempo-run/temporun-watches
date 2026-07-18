@@ -73,15 +73,17 @@ class ExerciseManager(context: Context) {
         DataType.LOCATION,
     )
 
-    // Mapa DataType → permissão runtime exigida.
+    // Mapa DataType → permissão runtime exigida (espelha a tabela oficial do Health Services:
+    // dados de atividade — passos, distância, velocidade, calorias — exigem ACTIVITY_RECOGNITION).
     private fun permissionFor(dt: DataType<*, *>): String? = when (dt) {
         DataType.HEART_RATE_BPM, DataType.HEART_RATE_BPM_STATS, DataType.VO2_MAX ->
             Manifest.permission.BODY_SENSORS
         DataType.LOCATION, DataType.ABSOLUTE_ELEVATION ->
             Manifest.permission.ACCESS_FINE_LOCATION
-        DataType.STEPS_TOTAL, DataType.STEPS_PER_MINUTE ->
+        DataType.STEPS_TOTAL, DataType.STEPS_PER_MINUTE,
+        DataType.DISTANCE_TOTAL, DataType.SPEED, DataType.CALORIES_TOTAL ->
             Manifest.permission.ACTIVITY_RECOGNITION
-        else -> null // DISTANCE_TOTAL, SPEED, CALORIES_TOTAL: derivadas, sem permissão dedicada
+        else -> null
     }
 
     private fun granted(permission: String): Boolean =
