@@ -40,7 +40,7 @@ android {
         // Play barra ("usuários existentes não conseguem atualizar"). O relógio
         // passa a viver na faixa 9000xxxx — separada do celular (2026xxxx), sem
         // risco de colisão. As faixas são versionadas de forma independente.
-        versionCode = 90000007
+        versionCode = 90000008
         versionName = "1.0.41"
     }
 
