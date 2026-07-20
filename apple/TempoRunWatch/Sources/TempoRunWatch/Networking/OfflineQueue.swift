@@ -78,56 +78,81 @@ final class OfflineQueue: ObservableObject {
 
     // MARK: - Enfileirar
 
-    func enqueue(_ payload: [String: Any]) {
+    @discardableResult
+    func enqueue(_ payload: [String: Any]) -> UUID {
         let item = QueuedWorkout(payload: payload)
         queue.append(item)
         lastSyncStatus = .idle
+        return item.id
+    }
+
+    // Remove um item específico (chamado quando o servidor confirmou o insert
+    // por outro caminho — ex.: envio direto no endWorkout).
+    func remove(_ id: UUID) {
+        queue.removeAll { $0.id == id }
     }
 
     // MARK: - Sincronizar
 
+    // Política de retry: corrida NUNCA é descartada por falha transitória.
+    //  - Sem credenciais / 401 sem refresh → mantém e aguarda novo login
+    //    (applyCredentials dispara syncAll ao receber credenciais do iPhone).
+    //  - Rede fora / timeout / 5xx → mantém; retry no próximo gatilho
+    //    (rede voltou, app em foreground, credenciais chegaram).
+    //  - Só 4xx permanente (payload rejeitado pelo servidor) conta tentativa
+    //    e descarta após maxAttempts, para não travar a fila com lixo.
     func syncAll() async {
         guard !queue.isEmpty, !isSyncing else { return }
+        guard SupabaseConfig.isConfigured else { return }   // aguarda credenciais
         isSyncing = true
         lastSyncStatus = .syncing
         var synced = 0
 
-        for i in queue.indices.reversed() {
+        outer: for i in queue.indices.reversed() {
             var item = queue[i]
-            guard item.attempts < maxAttempts else {
-                // Descarta após max tentativas para não travar a fila
-                queue.remove(at: i)
-                continue
-            }
 
             do {
                 try await SupabaseClient.shared.insertCorrida(item.payloadDict)
                 queue.remove(at: i)
                 synced += 1
+            } catch SupabaseError.notConfigured {
+                break outer   // credenciais sumiram no meio (logout) — aguarda login
             } catch SupabaseError.httpError(401, _) {
                 // Token expirado — tenta refresh uma vez
                 let defaults = UserDefaults(suiteName: appGroupID) ?? .standard
-                if let refreshTok = defaults.string(forKey: "supabaseRefreshToken") {
-                    _ = try? await SupabaseClient.shared.refreshToken(refreshToken: refreshTok)
-                    // Retry imediato após refresh
-                    do {
-                        try await SupabaseClient.shared.insertCorrida(item.payloadDict)
-                        queue.remove(at: i)
-                        synced += 1
-                    } catch {
-                        item.attempts += 1
-                        item.lastError = error.localizedDescription
-                        queue[i] = item
-                    }
+                guard let refreshTok = defaults.string(forKey: "supabaseRefreshToken") else {
+                    // Sem refresh token (ex.: logout): mantém a corrida e para;
+                    // sincroniza quando o iPhone reenviar credenciais válidas.
+                    item.lastError = "aguardando novo login (401)"
+                    queue[i] = item
+                    break outer
+                }
+                _ = try? await SupabaseClient.shared.refreshToken(refreshToken: refreshTok)
+                // Retry imediato após refresh
+                do {
+                    try await SupabaseClient.shared.insertCorrida(item.payloadDict)
+                    queue.remove(at: i)
+                    synced += 1
+                } catch {
+                    // Refresh não resolveu agora; para de martelar o backend e
+                    // espera o próximo gatilho de sync.
+                    item.lastError = error.localizedDescription
+                    queue[i] = item
+                    break outer
+                }
+            } catch SupabaseError.httpError(let code, let msg)
+                    where (400...499).contains(code) && code != 408 && code != 429 {
+                // Erro permanente: o servidor rejeitou o payload. Única situação
+                // que conta tentativa e pode descartar (após maxAttempts).
+                item.attempts += 1
+                item.lastError = "HTTP \(code): \(msg)"
+                if item.attempts >= maxAttempts {
+                    queue.remove(at: i)
                 } else {
-                    // Sem refresh token: conta a tentativa para não travar a fila
-                    // indefinidamente (descartada após maxAttempts).
-                    item.attempts += 1
-                    item.lastError = "401 sem refresh token"
                     queue[i] = item
                 }
             } catch {
-                item.attempts += 1
+                // Transitório (rede, timeout, 5xx): mantém sem contar tentativa.
                 item.lastError = error.localizedDescription
                 queue[i] = item
             }

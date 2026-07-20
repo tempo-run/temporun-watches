@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct TempoRunWatchApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var workoutManager = WorkoutManager()
     @StateObject private var planManager   = TrainingPlanManager.shared
     @StateObject private var offlineQueue  = OfflineQueue.shared
@@ -24,6 +25,14 @@ struct TempoRunWatchApp: App {
                 .environmentObject(offlineQueue)
                 .task {
                     workoutManager.requestLocationAuthorization()
+                }
+                // Toda vez que o app volta ao foreground, tenta esvaziar a fila
+                // de corridas pendentes (complementa os gatilhos de "rede voltou"
+                // e "credenciais recebidas do iPhone").
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        Task { await OfflineQueue.shared.syncAll() }
+                    }
                 }
         }
     }

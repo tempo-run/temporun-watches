@@ -436,41 +436,48 @@ class WorkoutManager: NSObject, ObservableObject {
             let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime,
                                          startDate: start, tipo: activityType.dbValue)
 
-            let iPhoneReachable = WCSession.default.activationState == .activated
-                                  && WCSession.default.isReachable
-            let watchCanSave = NetworkMonitor.shared.isConnected && SupabaseConfig.isConfigured
+            // ── Write-ahead: a corrida vira registro DURÁVEL no relógio antes de
+            // qualquer tentativa de rede. Ela só sai da fila quando o servidor
+            // confirmar o insert. Assim nenhum caminho (iPhone ausente, app iOS
+            // sem handler, rede caindo no meio, app morto pelo sistema) perde dados.
+            let dict = edgeFunctionDict(from: payload)
+            let queuedID = OfflineQueue.shared.enqueue(dict)
+            CrashReporter.breadcrumb("endWorkout: corrida enfileirada (write-ahead)")
 
-            if watchCanSave {
-                // Caminho primário: o próprio relógio grava via edge function.
-                // Não dependemos do app iOS persistir o relay — a corrida é salva
-                // enquanto o relógio tiver rede. O dedup do servidor (data_inicio ±30s)
-                // impede duplicata caso o iPhone também grave.
-                await saveStandalone(payload: payload)
-                // Espelha para o iPhone (atualiza UI do app; se o relógio tiver
-                // falhado, o iPhone grava e o dedup evita linha dupla).
-                if iPhoneReachable {
-                    WatchSessionManager.shared.sendWorkout(payload)
-                }
-            } else if iPhoneReachable {
-                // Relógio sem rede, mas iPhone por perto: delega a gravação ao iPhone.
-                WatchSessionManager.shared.sendWorkout(payload)
-            } else {
-                // Nem relógio nem iPhone com caminho agora: enfileira (saveStandalone
-                // cai no OfflineQueue quando offline) para sincronizar quando a rede voltar.
-                await saveStandalone(payload: payload)
-            }
-
+            // UI primeiro: mostra o resumo imediatamente; XP/streak chegam
+            // de forma assíncrona quando o servidor responder.
             lastMetrics = metrics
             state = .ended
+
+            // Espelha ao iPhone quando alcançável (UI ao vivo no app do celular;
+            // se o app iOS também gravar, o dedup do servidor — data_inicio ±30s —
+            // impede linha dupla).
+            if WCSession.default.activationState == .activated && WCSession.default.isReachable {
+                WatchSessionManager.shared.sendWorkout(payload)
+            }
+
+            // Tenta confirmar no servidor agora, se o relógio tem rede + credenciais.
+            // Em caso de falha a corrida permanece na fila e o OfflineQueue tenta
+            // de novo quando a rede voltar / app abrir / credenciais chegarem.
+            if NetworkMonitor.shared.isConnected && SupabaseConfig.isConfigured {
+                do {
+                    let result = try await SupabaseClient.shared.insertCorrida(dict)
+                    saveResult = result
+                    OfflineQueue.shared.remove(queuedID)
+                    CrashReporter.breadcrumb("endWorkout: corrida confirmada no servidor")
+                } catch {
+                    CrashReporter.breadcrumb("endWorkout: envio falhou, fica na fila: \(error.localizedDescription)")
+                }
+            }
         }
     }
 
-    // MARK: - Standalone save
+    // MARK: - Payload da edge function
 
-    private func saveStandalone(payload: WorkoutPayload) async {
-        // Monta o dicionário no contrato EXATO da edge function watch-workout-save
-        // (interface WatchWorkoutPayload em index.ts). Nomes divergentes são lidos como
-        // undefined no Deno e viram NULL silencioso no banco — ver CONTRACT_AUDIT.md.
+    // Monta o dicionário no contrato EXATO da edge function watch-workout-save
+    // (interface WatchWorkoutPayload em index.ts). Nomes divergentes são lidos como
+    // undefined no Deno e viram NULL silencioso no banco — ver CONTRACT_AUDIT.md.
+    private func edgeFunctionDict(from payload: WorkoutPayload) -> [String: Any] {
         let dict: [String: Any] = [
             "tipo":                      payload.tipo ?? "corrida",
             "distancia_km":              payload.distanceKm,
@@ -515,17 +522,7 @@ class WorkoutManager: NSObject, ObservableObject {
             "data_fim":                  ISO8601DateFormatter().string(from: payload.endDate),
             "source":                    "apple_watch_standalone"
         ]
-
-        if NetworkMonitor.shared.isConnected && SupabaseConfig.isConfigured {
-            do {
-                let result = try await SupabaseClient.shared.insertCorrida(dict)
-                saveResult = result
-            } catch {
-                OfflineQueue.shared.enqueue(dict)
-            }
-        } else {
-            await OfflineQueue.shared.enqueue(dict)
-        }
+        return dict
     }
 
     func resetWorkout() {
