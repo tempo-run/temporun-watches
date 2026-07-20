@@ -86,80 +86,102 @@ final class OfflineQueue: ObservableObject {
         return item.id
     }
 
-    // Remove um item específico (chamado quando o servidor confirmou o insert
-    // por outro caminho — ex.: envio direto no endWorkout).
-    func remove(_ id: UUID) {
-        queue.removeAll { $0.id == id }
-    }
-
     // MARK: - Sincronizar
 
+    // Drena a fila. Ponto de entrada único — protegido por `isSyncing` (exclusão
+    // mútua). Todas as mutações são feitas RE-LOCALIZANDO o item por `id`, nunca
+    // por índice capturado antes de um `await`: isso elimina o crash de "index out
+    // of range" quando outro caminho (remove/enqueue) muta a fila durante a rede.
+    //
     // Política de retry: corrida NUNCA é descartada por falha transitória.
-    //  - Sem credenciais / 401 sem refresh → mantém e aguarda novo login
-    //    (applyCredentials dispara syncAll ao receber credenciais do iPhone).
-    //  - Rede fora / timeout / 5xx → mantém; retry no próximo gatilho
-    //    (rede voltou, app em foreground, credenciais chegaram).
-    //  - Só 4xx permanente (payload rejeitado pelo servidor) conta tentativa
-    //    e descarta após maxAttempts, para não travar a fila com lixo.
+    //  - Sem credenciais / 401 sem refresh → mantém e aguarda novo login.
+    //  - Rede fora / timeout / 5xx → mantém; retry no próximo gatilho.
+    //  - Só 4xx permanente (payload rejeitado) conta tentativa e descarta após
+    //    maxAttempts, para não travar a fila com lixo.
     func syncAll() async {
-        guard !queue.isEmpty, !isSyncing else { return }
-        guard SupabaseConfig.isConfigured else { return }   // aguarda credenciais
+        _ = await flush(target: nil)
+    }
+
+    // Drena a fila e devolve o WatchSaveResult do item `target` (se ele foi
+    // gravado nesta passagem). `endWorkout` usa isso para mostrar XP/streak.
+    @discardableResult
+    func flush(target: UUID?) async -> WatchSaveResult? {
+        guard !isSyncing else { return nil }
+        guard SupabaseConfig.isConfigured else { return nil }   // aguarda credenciais
+        guard !queue.isEmpty else { return nil }
         isSyncing = true
+        defer { isSyncing = false }
         lastSyncStatus = .syncing
         var synced = 0
+        var targetResult: WatchSaveResult?
 
-        outer: for i in queue.indices.reversed() {
-            var item = queue[i]
+        // Processa por id, sempre re-localizando o item (nunca por índice
+        // capturado antes de um `await`). O laço pega também itens que chegam
+        // DURANTE a drenagem (ex.: corrida encerrada enquanto um sync já rodava),
+        // cada id no máximo uma vez — `processed` evita loop infinito em falhas.
+        var processed = Set<UUID>()
+        loop: while true {
+            guard let id = queue.first(where: { !processed.contains($0.id) })?.id else {
+                break loop
+            }
+            processed.insert(id)
+            guard let payloadDict = queue.first(where: { $0.id == id })?.payloadDict else {
+                continue   // item já removido por outro caminho
+            }
 
             do {
-                try await SupabaseClient.shared.insertCorrida(item.payloadDict)
-                queue.remove(at: i)
+                let result = try await SupabaseClient.shared.insertCorrida(payloadDict)
+                queue.removeAll { $0.id == id }
                 synced += 1
+                if id == target { targetResult = result }
             } catch SupabaseError.notConfigured {
-                break outer   // credenciais sumiram no meio (logout) — aguarda login
+                break loop   // credenciais sumiram no meio (logout) — aguarda login
             } catch SupabaseError.httpError(401, _) {
                 // Token expirado — tenta refresh uma vez
                 let defaults = UserDefaults(suiteName: appGroupID) ?? .standard
                 guard let refreshTok = defaults.string(forKey: "supabaseRefreshToken") else {
-                    // Sem refresh token (ex.: logout): mantém a corrida e para;
-                    // sincroniza quando o iPhone reenviar credenciais válidas.
-                    item.lastError = "aguardando novo login (401)"
-                    queue[i] = item
-                    break outer
+                    setError(id, "aguardando novo login (401)")
+                    break loop
                 }
                 _ = try? await SupabaseClient.shared.refreshToken(refreshToken: refreshTok)
-                // Retry imediato após refresh
                 do {
-                    try await SupabaseClient.shared.insertCorrida(item.payloadDict)
-                    queue.remove(at: i)
+                    let result = try await SupabaseClient.shared.insertCorrida(payloadDict)
+                    queue.removeAll { $0.id == id }
                     synced += 1
+                    if id == target { targetResult = result }
                 } catch {
-                    // Refresh não resolveu agora; para de martelar o backend e
-                    // espera o próximo gatilho de sync.
-                    item.lastError = error.localizedDescription
-                    queue[i] = item
-                    break outer
+                    setError(id, error.localizedDescription)
+                    break loop
                 }
             } catch SupabaseError.httpError(let code, let msg)
                     where (400...499).contains(code) && code != 408 && code != 429 {
-                // Erro permanente: o servidor rejeitou o payload. Única situação
+                // Erro permanente: servidor rejeitou o payload. Única situação
                 // que conta tentativa e pode descartar (após maxAttempts).
-                item.attempts += 1
-                item.lastError = "HTTP \(code): \(msg)"
-                if item.attempts >= maxAttempts {
-                    queue.remove(at: i)
-                } else {
-                    queue[i] = item
-                }
+                bumpAttempt(id, error: "HTTP \(code): \(msg)")
             } catch {
                 // Transitório (rede, timeout, 5xx): mantém sem contar tentativa.
-                item.lastError = error.localizedDescription
-                queue[i] = item
+                setError(id, error.localizedDescription)
             }
         }
 
-        isSyncing = false
         lastSyncStatus = synced > 0 ? .success(synced) : (queue.isEmpty ? .success(0) : .failed(queue.last?.lastError ?? "erro"))
+        return targetResult
+    }
+
+    // Atualiza lastError de um item (re-localiza por id).
+    private func setError(_ id: UUID, _ message: String) {
+        guard let idx = queue.firstIndex(where: { $0.id == id }) else { return }
+        queue[idx].lastError = message
+    }
+
+    // Conta uma tentativa permanente; descarta se passar do teto.
+    private func bumpAttempt(_ id: UUID, error: String) {
+        guard let idx = queue.firstIndex(where: { $0.id == id }) else { return }
+        queue[idx].attempts += 1
+        queue[idx].lastError = error
+        if queue[idx].attempts >= maxAttempts {
+            queue.removeAll { $0.id == id }
+        }
     }
 
     // MARK: - Persistência (UserDefaults App Group)

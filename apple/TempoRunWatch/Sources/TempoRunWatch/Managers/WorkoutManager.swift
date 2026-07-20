@@ -423,52 +423,44 @@ class WorkoutManager: NSObject, ObservableObject {
         guard let session = workoutSession, let builder = workoutBuilder else { return }
         flushZoneTime()
         VoiceCoach.shared.announceFinish()
+
+        guard let start = startDate else { session.end(); state = .ended; return }
+
+        // ── Write-ahead PRIMEIRO: monta o payload das métricas ao vivo (já finais)
+        // e torna a corrida um registro DURÁVEL no relógio (UserDefaults do App
+        // Group, gravado sincronamente) ANTES de qualquer await/HealthKit/rede.
+        // Se o processo morrer durante a finalização do HealthKit, a corrida já
+        // está persistida e sobe no próximo gatilho de sync.
+        metrics.averagePace = metrics.distanceKm > 0 ? elapsedTime / metrics.distanceKm : 0
+        let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime,
+                                     startDate: start, tipo: activityType.dbValue)
+        let queuedID = OfflineQueue.shared.enqueue(edgeFunctionDict(from: payload))
+        CrashReporter.breadcrumb("endWorkout: corrida enfileirada (write-ahead)")
+
         session.end()
+        lastMetrics = metrics
+        state = .ended
+
         Task {
+            // Finaliza HealthKit (best-effort — a corrida já está durável na fila).
             try? await builder.endCollection(at: Date())
-            let workout = try? await builder.finishWorkout()
-            if let workout { try? await routeBuilder?.finishRoute(with: workout, metadata: nil) }
+            if let workout = try? await builder.finishWorkout() {
+                try? await routeBuilder?.finishRoute(with: workout, metadata: nil)
+            }
             timer?.invalidate()
             locationManager.stopUpdatingLocation()
-            metrics.averagePace = metrics.distanceKm > 0 ? elapsedTime / metrics.distanceKm : 0
 
-            guard let start = startDate else { state = .ended; return }
-            let payload = WorkoutPayload(metrics: metrics, elapsedTime: elapsedTime,
-                                         startDate: start, tipo: activityType.dbValue)
-
-            // ── Write-ahead: a corrida vira registro DURÁVEL no relógio antes de
-            // qualquer tentativa de rede. Ela só sai da fila quando o servidor
-            // confirmar o insert. Assim nenhum caminho (iPhone ausente, app iOS
-            // sem handler, rede caindo no meio, app morto pelo sistema) perde dados.
-            let dict = edgeFunctionDict(from: payload)
-            let queuedID = OfflineQueue.shared.enqueue(dict)
-            CrashReporter.breadcrumb("endWorkout: corrida enfileirada (write-ahead)")
-
-            // UI primeiro: mostra o resumo imediatamente; XP/streak chegam
-            // de forma assíncrona quando o servidor responder.
-            lastMetrics = metrics
-            state = .ended
-
-            // Espelha ao iPhone quando alcançável (UI ao vivo no app do celular;
-            // se o app iOS também gravar, o dedup do servidor — data_inicio ±30s —
-            // impede linha dupla).
+            // Espelha ao iPhone quando alcançável (redundância p/ relógio sem rede;
+            // dedup atômico do servidor — índice único user_id+data_inicio — impede
+            // linha dupla mesmo com gravação concorrente relógio+iPhone).
             if WCSession.default.activationState == .activated && WCSession.default.isReachable {
                 WatchSessionManager.shared.sendWorkout(payload)
             }
 
-            // Tenta confirmar no servidor agora, se o relógio tem rede + credenciais.
-            // Em caso de falha a corrida permanece na fila e o OfflineQueue tenta
-            // de novo quando a rede voltar / app abrir / credenciais chegarem.
-            if NetworkMonitor.shared.isConnected && SupabaseConfig.isConfigured {
-                do {
-                    let result = try await SupabaseClient.shared.insertCorrida(dict)
-                    saveResult = result
-                    OfflineQueue.shared.remove(queuedID)
-                    CrashReporter.breadcrumb("endWorkout: corrida confirmada no servidor")
-                } catch {
-                    CrashReporter.breadcrumb("endWorkout: envio falhou, fica na fila: \(error.localizedDescription)")
-                }
-            }
+            // Caminho ÚNICO de gravação: drena a fila (protegido por isSyncing).
+            // Devolve XP/streak desta corrida se ela subiu agora; se o relógio
+            // estiver offline/sem login, fica na fila e sobe no próximo gatilho.
+            saveResult = await OfflineQueue.shared.flush(target: queuedID)
         }
     }
 

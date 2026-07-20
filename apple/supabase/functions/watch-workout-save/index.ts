@@ -358,7 +358,26 @@ serve(async (req: Request) => {
       .select("id")
       .single()
 
-    if (insertError) return errorResponse(500, insertError.message)
+    if (insertError) {
+      // 23505 = unique_violation no índice (user_id, data_inicio). Acontece quando
+      // uma segunda gravação da MESMA corrida (retry do relógio ou relay do iPhone)
+      // corre em paralelo e passa pelo pré-check ±30s antes do primeiro insert
+      // commitar. O índice único garante atomicidade: aqui tratamos como duplicata
+      // em vez de erro 500 — busca a linha existente e retorna is_duplicate.
+      if ((insertError as { code?: string }).code === "23505") {
+        const { data: dupe } = await supabase
+          .from("corridas")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("data_inicio", payload.data_inicio)
+          .single()
+        return jsonResponse({
+          corrida_id: dupe?.id ?? "", xp_ganho: 0, streak_atual: 0,
+          novos_recordes: [], is_duplicate: true,
+        })
+      }
+      return errorResponse(500, insertError.message)
+    }
 
     // 4. Streak, XP acumulado e recordes em paralelo
     const [streakAtual, novosRecordes] = await Promise.all([
