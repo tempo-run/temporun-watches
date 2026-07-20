@@ -22,7 +22,7 @@ targets:
       path: Stub/Info.plist
       properties:
         CFBundleDisplayName: TempoRun Watch
-        CFBundleShortVersionString: "1.0"
+        CFBundleShortVersionString: "1.0.1"
         CFBundleVersion: "1"
         CFBundleIconName: AppIcon
         UISupportedInterfaceOrientations:
@@ -62,7 +62,7 @@ targets:
       path: TempoRunWatch/Info.plist
       properties:
         CFBundleDisplayName: TempoRun
-        CFBundleShortVersionString: "1.0"
+        CFBundleShortVersionString: "1.0.1"
         CFBundleVersion: "1"
         WKCompanionAppBundleIdentifier: com.temporun.watch
         CFBundleIconName: AppIcon
@@ -112,7 +112,7 @@ targets:
       path: TempoRunWatch/WidgetExtension-Info.plist
       properties:
         CFBundleDisplayName: TempoRun Widget
-        CFBundleShortVersionString: "1.0"
+        CFBundleShortVersionString: "1.0.1"
         CFBundleVersion: "1"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
